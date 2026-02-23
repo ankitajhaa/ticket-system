@@ -13,4 +13,6 @@ public interface TicketService {
     List<Ticket> getTicketsForUser(Users user);
 
     Ticket getTicketById(Long id);
+
+    Ticket assignToSelf(Long ticketId, Users agent);
 }

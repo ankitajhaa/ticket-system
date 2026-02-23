@@ -51,4 +51,24 @@ public class TicketServiceImpl implements TicketService {
         return ticketRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));
     }
+
+    @Override
+    public Ticket assignToSelf(Long ticketId, Users agent) {
+
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+
+        if (ticket.getStatus() == Status.CLOSE) {
+            throw new RuntimeException("Closed ticket cannot be modified");
+        }
+
+        if (ticket.getAssignedAgent() != null) {
+            throw new RuntimeException("Ticket already assigned");
+        }
+
+        ticket.setAssignedAgent(agent);
+        ticket.setStatus(Status.ASSIGNED);
+
+        return ticketRepository.save(ticket);
+    }
 }
