@@ -1,18 +1,19 @@
 package com.beginner_project.ticket_system.service;
 
 import com.beginner_project.ticket_system.dto.TicketCreateRequest;
-import com.beginner_project.ticket_system.entity.Ticket;
+import com.beginner_project.ticket_system.dto.TicketResponse;
 import com.beginner_project.ticket_system.entity.Users;
+import com.beginner_project.ticket_system.enums.Status;
 
 import java.util.List;
 
 public interface TicketService {
 
-    Ticket createTicket(TicketCreateRequest request, Users user);
+    TicketResponse createTicket(TicketCreateRequest request, Users user);
 
-    List<Ticket> getTicketsForUser(Users user);
+    List<TicketResponse> getTicketsForUser(Users user, String status);
 
-    Ticket getTicketById(Long id);
+    TicketResponse getTicketById(Long id, Users user);
 
-    Ticket assignToSelf(Long ticketId, Users agent);
+    TicketResponse assignToSelf(Long ticketId, Users agent);
 }

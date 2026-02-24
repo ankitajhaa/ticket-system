@@ -1,4 +1,7 @@
 package com.beginner_project.ticket_system.service;
 
-public class AuthService {
+public interface AuthService {
+
+    String login(String username, String password);
+
 }

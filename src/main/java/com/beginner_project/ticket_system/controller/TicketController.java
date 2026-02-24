@@ -1,9 +1,10 @@
 package com.beginner_project.ticket_system.controller;
 
 import com.beginner_project.ticket_system.dto.TicketCreateRequest;
-import com.beginner_project.ticket_system.entity.Ticket;
+import com.beginner_project.ticket_system.dto.TicketResponse;
 import com.beginner_project.ticket_system.entity.Users;
 import com.beginner_project.ticket_system.service.TicketService;
+import com.beginner_project.ticket_system.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,48 +19,74 @@ public class TicketController {
 
     private final TicketService ticketService;
 
-    public TicketController(TicketService ticketService) {
+    private final UserService userService;
+
+    public TicketController(
+            TicketService ticketService,
+            UserService userService
+    ) {
         this.ticketService = ticketService;
+        this.userService = userService;
     }
 
-    //CREATE TICKET
     @PostMapping
-    public Ticket createTicket(@Valid @RequestBody TicketCreateRequest request) {
-        Users user = (Users) SecurityContextHolder
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public TicketResponse createTicket(
+            @Valid @RequestBody TicketCreateRequest request
+    ) {
+        String username = SecurityContextHolder
                 .getContext()
                 .getAuthentication()
-                .getPrincipal();
+                .getName();
+
+        Users user = userService.getByUsername(username);
+
         return ticketService.createTicket(request, user);
     }
 
-    //VIEW TICKETS
     @GetMapping
-    public List<Ticket> getTickets() {
-        Users user = (Users) SecurityContextHolder
+    public List<TicketResponse> getTickets(
+            @RequestParam(required = false) String status
+    ) {
+
+        String username = SecurityContextHolder
                 .getContext()
                 .getAuthentication()
-                .getPrincipal();
+                .getName();
 
-        return ticketService.getTicketsForUser(user);
+        Users user = userService.getByUsername(username);
+
+        return ticketService.getTicketsForUser(user, status);
     }
 
-    //VIEW SINGLE TICKET
     @GetMapping("/{id}")
-    public Ticket getTicket(@PathVariable long id) {
-        return ticketService.getTicketById(id);
+    public TicketResponse getTicket(@PathVariable Long id) {
+        String username = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        Users user = userService.getByUsername(username);
+
+        return ticketService.getTicketById(id, user);
     }
 
     @PatchMapping("/{id}/claim")
     @PreAuthorize("hasRole('SUPPORT_AGENT')")
-    public ResponseEntity<?> claimTicket(@PathVariable Long id) {
+    public ResponseEntity<TicketResponse> claimTicket(
+            @PathVariable Long id
+    ) {
 
-        Users agent = (Users)
-                SecurityContextHolder.getContext()
-                        .getAuthentication()
-                        .getPrincipal();
+        String username = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
 
-        Ticket ticket = ticketService.assignToSelf(id, agent);
+        Users agent = userService.getByUsername(username);
 
-        return ResponseEntity.ok(ticket);
+        return ResponseEntity.ok(
+                ticketService.assignToSelf(id, agent)
+        );
     }
+
 }
