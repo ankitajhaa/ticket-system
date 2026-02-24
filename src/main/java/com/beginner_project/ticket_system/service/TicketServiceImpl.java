@@ -1,13 +1,16 @@
 package com.beginner_project.ticket_system.service;
 
 import com.beginner_project.ticket_system.dao.TicketRepository;
+import com.beginner_project.ticket_system.dao.UserRepository;
 import com.beginner_project.ticket_system.dto.TicketCreateRequest;
 import com.beginner_project.ticket_system.dto.TicketResponse;
+import com.beginner_project.ticket_system.dto.TicketUpdateRequest;
 import com.beginner_project.ticket_system.dto.UserResponse;
 import com.beginner_project.ticket_system.entity.Ticket;
 import com.beginner_project.ticket_system.entity.Users;
 import com.beginner_project.ticket_system.enums.Role;
 import com.beginner_project.ticket_system.enums.Status;
+import com.beginner_project.ticket_system.exception.BusinessException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,9 +19,11 @@ import java.util.List;
 public class TicketServiceImpl implements TicketService {
 
     private final TicketRepository ticketRepository;
+    private final UserRepository userRepository;
 
-    public TicketServiceImpl(TicketRepository ticketRepository) {
+    public TicketServiceImpl(TicketRepository ticketRepository, UserRepository userRepository) {
         this.ticketRepository = ticketRepository;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -49,7 +54,7 @@ public class TicketServiceImpl implements TicketService {
             try {
                 statusEnum = Status.valueOf(status.toUpperCase());
             } catch (Exception e) {
-                throw new RuntimeException("Invalid status value");
+                throw new BusinessException("Invalid status value");
             }
         }
 
@@ -86,7 +91,7 @@ public class TicketServiceImpl implements TicketService {
     public TicketResponse getTicketById(Long id, Users user) {
 
         Ticket ticket = ticketRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+                .orElseThrow(() -> new BusinessException("Ticket not found"));
 
         // ADMIN can view everything
         if (user.getRole() == Role.ADMIN) {
@@ -97,14 +102,14 @@ public class TicketServiceImpl implements TicketService {
         if (user.getRole() == Role.SUPPORT_AGENT) {
             if (ticket.getAssignedAgent() == null ||
                     !ticket.getAssignedAgent().getId().equals(user.getId())) {
-                throw new RuntimeException("Access denied");
+                throw new BusinessException("Access denied");
             }
             return mapTicket(ticket);
         }
 
         // CUSTOMER → only own ticket
         if (!ticket.getCreatedBy().getId().equals(user.getId())) {
-            throw new RuntimeException("Access denied");
+            throw new BusinessException("Access denied");
         }
 
         return mapTicket(ticket);
@@ -114,18 +119,113 @@ public class TicketServiceImpl implements TicketService {
     public TicketResponse assignToSelf(Long ticketId, Users agent) {
 
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+                .orElseThrow(() -> new BusinessException("Ticket not found"));
 
         if (ticket.getStatus() == Status.CLOSE) {
-            throw new RuntimeException("Closed ticket cannot be modified");
+            throw new BusinessException("Closed ticket cannot be modified");
         }
 
         if (ticket.getAssignedAgent() != null) {
-            throw new RuntimeException("Ticket already assigned");
+            throw new BusinessException("Ticket already assigned");
         }
 
         ticket.setAssignedAgent(agent);
         ticket.setStatus(Status.ASSIGNED);
+
+        Ticket saved = ticketRepository.save(ticket);
+
+        return mapTicket(saved);
+    }
+
+    @Override
+    public TicketResponse updateTicket(
+            Long ticketId,
+            TicketUpdateRequest request,
+            Users user
+    ) {
+
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() ->
+                        new BusinessException("Ticket does not exist"));
+
+        // CLOSED ticket check
+        if (ticket.getStatus() == Status.CLOSE) {
+            throw new BusinessException(
+                    "Closed tickets cannot be modified"
+            );
+        }
+
+        String action = request.getAction().toLowerCase();
+
+        switch (action) {
+
+            // Claim
+            case "claim" -> {
+
+                if (user.getRole() != Role.SUPPORT_AGENT) {
+                    throw new BusinessException(
+                            "You are not allowed to perform this action");
+                }
+
+                if (ticket.getAssignedAgent() != null) {
+                    throw new BusinessException("Ticket already assigned");
+                }
+
+                ticket.setAssignedAgent(user);
+                ticket.setStatus(Status.ASSIGNED);
+            }
+
+            // UPDATE PROGRESS
+            case "update_progress" -> {
+
+                if (user.getRole() != Role.SUPPORT_AGENT ||
+                        ticket.getAssignedAgent() == null ||
+                        !ticket.getAssignedAgent().getId()
+                                .equals(user.getId())) {
+
+                    throw new BusinessException(
+                            "You are not allowed to perform this action");
+                }
+
+                if (request.getStatus() == null) {
+                    throw new BusinessException("Invalid request data");
+                }
+
+                Status newStatus;
+
+                try {
+                    newStatus =
+                            Status.valueOf(request.getStatus().toUpperCase());
+                } catch (Exception e) {
+                    throw new BusinessException("Invalid request data");
+                }
+
+                ticket.setStatus(newStatus);
+            }
+
+            // ADMIN ASSIGN
+            case "assign" -> {
+
+                if (user.getRole() != Role.ADMIN) {
+                    throw new BusinessException(
+                            "You are not allowed to perform this action");
+                }
+
+                if (request.getAssignedAgent() == null) {
+                    throw new BusinessException("Invalid request data");
+                }
+
+                Users agent = userRepository.findById(
+                        request.getAssignedAgent()
+                ).orElseThrow(() ->
+                        new BusinessException("Agent not found"));
+
+                ticket.setAssignedAgent(agent);
+                ticket.setStatus(Status.ASSIGNED);
+            }
+
+            default -> throw new BusinessException("Invalid request data");
+        }
 
         Ticket saved = ticketRepository.save(ticket);
 

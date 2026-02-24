@@ -2,6 +2,7 @@ package com.beginner_project.ticket_system.controller;
 
 import com.beginner_project.ticket_system.dto.TicketCreateRequest;
 import com.beginner_project.ticket_system.dto.TicketResponse;
+import com.beginner_project.ticket_system.dto.TicketUpdateRequest;
 import com.beginner_project.ticket_system.entity.Users;
 import com.beginner_project.ticket_system.service.TicketService;
 import com.beginner_project.ticket_system.service.UserService;
@@ -71,10 +72,10 @@ public class TicketController {
         return ticketService.getTicketById(id, user);
     }
 
-    @PatchMapping("/{id}/claim")
-    @PreAuthorize("hasRole('SUPPORT_AGENT')")
-    public ResponseEntity<TicketResponse> claimTicket(
-            @PathVariable Long id
+    @PatchMapping("/{id}")
+    public TicketResponse updateTicket(
+            @PathVariable Long id,
+            @Valid @RequestBody TicketUpdateRequest request
     ) {
 
         String username = SecurityContextHolder
@@ -82,11 +83,9 @@ public class TicketController {
                 .getAuthentication()
                 .getName();
 
-        Users agent = userService.getByUsername(username);
+        Users user = userService.getByUsername(username);
 
-        return ResponseEntity.ok(
-                ticketService.assignToSelf(id, agent)
-        );
+        return ticketService.updateTicket(id, request, user);
     }
 
 }
