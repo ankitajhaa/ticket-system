@@ -4,12 +4,12 @@ public class LoginResponse {
 
     private String access;
     private String refresh;
-    private long expiry_time;
+    private long expiryTime;
 
-    public LoginResponse(String access, String refresh, long expiry_time) {
+    public LoginResponse(String access, String refresh, long expiryTime) {
         this.access = access;
         this.refresh = refresh;
-        this.expiry_time = expiry_time;
+        this.expiryTime = expiryTime;
     }
 
     public String getAccess() {
@@ -20,7 +20,7 @@ public class LoginResponse {
         return refresh;
     }
 
-    public long getExpiry_time() {
-        return expiry_time;
+    public long getExpiryTime() {
+        return expiryTime;
     }
 }

@@ -1,6 +1,7 @@
 package com.beginner_project.ticket_system.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class TicketResponse {
 
@@ -13,6 +14,8 @@ public class TicketResponse {
     private UserResponse assignedAgent;
 
     private LocalDateTime createdAt;
+
+    private List<AuditLogResponse> auditLogs;
 
     public TicketResponse() {}
 
@@ -70,5 +73,13 @@ public class TicketResponse {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public List<AuditLogResponse> getAuditLogs() {
+        return auditLogs;
+    }
+
+    public void setAuditLogs(List<AuditLogResponse> auditLogs) {
+        this.auditLogs = auditLogs;
     }
 }

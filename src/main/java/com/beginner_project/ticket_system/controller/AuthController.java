@@ -5,6 +5,7 @@ import com.beginner_project.ticket_system.dto.LoginResponse;
 import com.beginner_project.ticket_system.dto.UserSignupRequest;
 import com.beginner_project.ticket_system.service.AuthService;
 import com.beginner_project.ticket_system.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,23 +32,13 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(
-            @RequestBody LoginRequest request) {
+            @Valid @RequestBody LoginRequest request) {
 
-        String accessToken = authService.login(
+        LoginResponse response = authService.login(
                 request.getUsername(),
                 request.getPassword()
         );
 
-        String refreshToken = accessToken;
-
-        long expiryTime = 1000 * 60 * 60;
-
-        return ResponseEntity.ok(
-                new LoginResponse(
-                        accessToken,
-                        refreshToken,
-                        expiryTime
-                )
-        );
+        return ResponseEntity.ok(response);
     }
 }

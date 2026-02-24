@@ -1,7 +1,8 @@
 package com.beginner_project.ticket_system.service;
 
+import com.beginner_project.ticket_system.dto.LoginResponse;
+
 public interface AuthService {
 
-    String login(String username, String password);
-
+    LoginResponse login(String username, String password);
 }

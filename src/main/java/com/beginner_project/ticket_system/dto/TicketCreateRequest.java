@@ -4,10 +4,10 @@ import jakarta.validation.constraints.NotBlank;
 
 public class TicketCreateRequest {
 
-    @NotBlank
+    @NotBlank(message = "Title is required")
     private String title;
 
-    @NotBlank
+    @NotBlank(message = "Description is required")
     private String description;
 
     public TicketCreateRequest() {}

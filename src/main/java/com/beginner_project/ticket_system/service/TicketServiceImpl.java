@@ -1,11 +1,9 @@
 package com.beginner_project.ticket_system.service;
 
+import com.beginner_project.ticket_system.dao.AuditLogRepository;
 import com.beginner_project.ticket_system.dao.TicketRepository;
 import com.beginner_project.ticket_system.dao.UserRepository;
-import com.beginner_project.ticket_system.dto.TicketCreateRequest;
-import com.beginner_project.ticket_system.dto.TicketResponse;
-import com.beginner_project.ticket_system.dto.TicketUpdateRequest;
-import com.beginner_project.ticket_system.dto.UserResponse;
+import com.beginner_project.ticket_system.dto.*;
 import com.beginner_project.ticket_system.entity.Ticket;
 import com.beginner_project.ticket_system.entity.Users;
 import com.beginner_project.ticket_system.enums.Role;
@@ -20,10 +18,16 @@ public class TicketServiceImpl implements TicketService {
 
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
+    private final AuditLogRepository auditLogRepository;
 
-    public TicketServiceImpl(TicketRepository ticketRepository, UserRepository userRepository) {
+    public TicketServiceImpl(
+            TicketRepository ticketRepository,
+            UserRepository userRepository,
+            AuditLogRepository auditLogRepository
+    ) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
+        this.auditLogRepository = auditLogRepository;
     }
 
     @Override
@@ -36,20 +40,14 @@ public class TicketServiceImpl implements TicketService {
                 user
         );
 
-        Ticket saved = ticketRepository.save(ticket);
-
-        return mapTicket(saved);
+        return mapTicket(ticketRepository.save(ticket));
     }
 
     @Override
-    public List<TicketResponse> getTicketsForUser(
-            Users user,
-            String status
-    ) {
+    public List<TicketResponse> getTicketsForUser(Users user, String status) {
 
         Status statusEnum = null;
 
-        // ===== STATUS VALIDATION =====
         if (status != null) {
             try {
                 statusEnum = Status.valueOf(status.toUpperCase());
@@ -60,7 +58,6 @@ public class TicketServiceImpl implements TicketService {
 
         List<Ticket> tickets;
 
-        // ===== ROLE FILTERING =====
         if (user.getRole() == Role.ADMIN) {
 
             tickets = (statusEnum == null)
@@ -71,20 +68,16 @@ public class TicketServiceImpl implements TicketService {
 
             tickets = (statusEnum == null)
                     ? ticketRepository.findByAssignedAgent(user)
-                    : ticketRepository
-                    .findByAssignedAgentAndStatus(user, statusEnum);
+                    : ticketRepository.findByAssignedAgentAndStatus(user, statusEnum);
 
         } else {
 
             tickets = (statusEnum == null)
                     ? ticketRepository.findByCreatedBy(user)
-                    : ticketRepository
-                    .findByCreatedByAndStatus(user, statusEnum);
+                    : ticketRepository.findByCreatedByAndStatus(user, statusEnum);
         }
 
-        return tickets.stream()
-                .map(this::mapTicket)
-                .toList();
+        return tickets.stream().map(this::mapTicket).toList();
     }
 
     @Override
@@ -93,26 +86,42 @@ public class TicketServiceImpl implements TicketService {
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Ticket not found"));
 
-        // ADMIN can view everything
-        if (user.getRole() == Role.ADMIN) {
-            return mapTicket(ticket);
-        }
-
-        // SUPPORT_AGENT can view only assigned tickets
         if (user.getRole() == Role.SUPPORT_AGENT) {
             if (ticket.getAssignedAgent() == null ||
                     !ticket.getAssignedAgent().getId().equals(user.getId())) {
-                throw new BusinessException("Access denied");
+
+                throw new BusinessException(
+                        "You do not have permission to view this ticket");
             }
-            return mapTicket(ticket);
         }
 
-        // CUSTOMER → only own ticket
-        if (!ticket.getCreatedBy().getId().equals(user.getId())) {
-            throw new BusinessException("Access denied");
+        if (user.getRole() == Role.CUSTOMER &&
+                !ticket.getCreatedBy().getId().equals(user.getId())) {
+
+            throw new BusinessException(
+                    "You do not have permission to view this ticket");
         }
 
-        return mapTicket(ticket);
+        TicketResponse response = mapTicket(ticket);
+
+        if (user.getRole() == Role.ADMIN ||
+                user.getRole() == Role.SUPPORT_AGENT) {
+
+            List<AuditLogResponse> logs =
+                    auditLogRepository.findByTicket(ticket)
+                            .stream()
+                            .map(a -> new AuditLogResponse(
+                                    a.getId(),
+                                    a.getUpdated_by().getUsername(),
+                                    a.getAction(),
+                                    a.getTimestamp()
+                            ))
+                            .toList();
+
+            response.setAuditLogs(logs);
+        }
+
+        return response;
     }
 
     @Override
@@ -121,7 +130,7 @@ public class TicketServiceImpl implements TicketService {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new BusinessException("Ticket not found"));
 
-        if (ticket.getStatus() == Status.CLOSE) {
+        if (ticket.getStatus() == Status.CLOSED) {
             throw new BusinessException("Closed ticket cannot be modified");
         }
 
@@ -132,9 +141,7 @@ public class TicketServiceImpl implements TicketService {
         ticket.setAssignedAgent(agent);
         ticket.setStatus(Status.ASSIGNED);
 
-        Ticket saved = ticketRepository.save(ticket);
-
-        return mapTicket(saved);
+        return mapTicket(ticketRepository.save(ticket));
     }
 
     @Override
@@ -148,54 +155,45 @@ public class TicketServiceImpl implements TicketService {
                 .orElseThrow(() ->
                         new BusinessException("Ticket does not exist"));
 
-        // CLOSED ticket check
-        if (ticket.getStatus() == Status.CLOSE) {
-            throw new BusinessException(
-                    "Closed tickets cannot be modified"
-            );
+        if (ticket.getStatus() == Status.CLOSED) {
+            throw new BusinessException("Closed tickets cannot be modified");
         }
 
         String action = request.getAction().toLowerCase();
 
         switch (action) {
 
-            // Claim
             case "claim" -> {
 
-                if (user.getRole() != Role.SUPPORT_AGENT) {
-                    throw new BusinessException(
-                            "You are not allowed to perform this action");
-                }
+                if (user.getRole() != Role.SUPPORT_AGENT)
+                    throw new BusinessException("You are not allowed to perform this action");
 
-                if (ticket.getAssignedAgent() != null) {
+                if (ticket.getAssignedAgent() != null)
                     throw new BusinessException("Ticket already assigned");
-                }
 
                 ticket.setAssignedAgent(user);
                 ticket.setStatus(Status.ASSIGNED);
             }
 
-            // UPDATE PROGRESS
             case "update_progress" -> {
 
-                if (user.getRole() != Role.SUPPORT_AGENT ||
-                        ticket.getAssignedAgent() == null ||
-                        !ticket.getAssignedAgent().getId()
-                                .equals(user.getId())) {
+                boolean isAssignedAgent =
+                        ticket.getAssignedAgent() != null &&
+                                ticket.getAssignedAgent().getId().equals(user.getId());
 
-                    throw new BusinessException(
-                            "You are not allowed to perform this action");
+                if (user.getRole() != Role.ADMIN &&
+                        !(user.getRole() == Role.SUPPORT_AGENT && isAssignedAgent)) {
+
+                    throw new BusinessException("You are not allowed to perform this action");
                 }
 
-                if (request.getStatus() == null) {
+                if (request.getStatus() == null)
                     throw new BusinessException("Invalid request data");
-                }
 
                 Status newStatus;
 
                 try {
-                    newStatus =
-                            Status.valueOf(request.getStatus().toUpperCase());
+                    newStatus = Status.valueOf(request.getStatus().toUpperCase());
                 } catch (Exception e) {
                     throw new BusinessException("Invalid request data");
                 }
@@ -203,17 +201,13 @@ public class TicketServiceImpl implements TicketService {
                 ticket.setStatus(newStatus);
             }
 
-            // ADMIN ASSIGN
             case "assign" -> {
 
-                if (user.getRole() != Role.ADMIN) {
-                    throw new BusinessException(
-                            "You are not allowed to perform this action");
-                }
+                if (user.getRole() != Role.ADMIN)
+                    throw new BusinessException("You are not allowed to perform this action");
 
-                if (request.getAssignedAgent() == null) {
+                if (request.getAssignedAgent() == null)
                     throw new BusinessException("Invalid request data");
-                }
 
                 Users agent = userRepository.findById(
                         request.getAssignedAgent()
@@ -227,10 +221,10 @@ public class TicketServiceImpl implements TicketService {
             default -> throw new BusinessException("Invalid request data");
         }
 
-        Ticket saved = ticketRepository.save(ticket);
-
-        return mapTicket(saved);
+        return mapTicket(ticketRepository.save(ticket));
     }
+
+    // ===== MAPPERS =====
 
     private TicketResponse mapTicket(Ticket ticket) {
 

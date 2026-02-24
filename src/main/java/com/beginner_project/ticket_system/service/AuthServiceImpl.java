@@ -1,5 +1,6 @@
 package com.beginner_project.ticket_system.service;
 
+import com.beginner_project.ticket_system.dto.LoginResponse;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -24,12 +25,9 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public String login(String username, String password) {
+    public LoginResponse login(String username, String password) {
 
-        // DEBUG START
-        System.out.println("=================================");
         System.out.println("LOGIN ATTEMPT: " + username);
-        System.out.println("=================================");
 
         // authenticate user
         authenticationManager.authenticate(
@@ -39,16 +37,22 @@ public class AuthServiceImpl implements AuthService {
                 )
         );
 
-        // if authentication succeeds, this prints
         System.out.println("AUTH SUCCESS");
 
-        // load user details again for token generation
         UserDetails userDetails =
                 userDetailsService.loadUserByUsername(username);
 
         System.out.println("JWT GENERATING...");
 
-        // generate JWT
-        return jwtService.generateToken(userDetails);
+        String accessToken = jwtService.generateToken(userDetails);
+
+        // TEMP refresh token (real one later)
+        String refreshToken = accessToken;
+
+        return new LoginResponse(
+                accessToken,
+                refreshToken,
+                60   // expiry time in minutes
+        );
     }
 }

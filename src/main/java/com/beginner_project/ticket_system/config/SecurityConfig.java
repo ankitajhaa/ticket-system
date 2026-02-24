@@ -52,6 +52,8 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/api/auth/**"
                         ).permitAll()
+                        .requestMatchers("/api/tickets/**")
+                        .hasAnyRole("ADMIN", "SUPPORT_AGENT", "CUSTOMER")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(

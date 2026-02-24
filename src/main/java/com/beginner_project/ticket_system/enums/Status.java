@@ -4,6 +4,6 @@ public enum Status {
     OPEN,
     ASSIGNED,
     IN_PROGRESS,
-    CLOSE,
-    RESOLVED
+    RESOLVED,
+    CLOSED
 }
