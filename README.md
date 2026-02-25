@@ -1,10 +1,10 @@
-# 🎫 Ticket Management System
+# Ticket Management System
 
 A backend system for managing customer support tickets with role-based access, assignment workflows, status tracking, and audit history.
 
 ---
 
-## 📌 Problem Statement
+## Problem Statement
 
 The company currently manages customer support tickets manually, leading to:
 
@@ -16,7 +16,7 @@ This project provides a centralized backend system to manage tickets efficiently
 
 ---
 
-## 👥 User Roles
+## User Roles
 
 ### Admin
 - View all tickets
@@ -35,7 +35,7 @@ This project provides a centralized backend system to manage tickets efficiently
 
 ---
 
-## 🚀 Core Features
+## Core Features
 
 - Ticket creation and management
 - Role-based access control (RBAC)
@@ -47,11 +47,11 @@ This project provides a centralized backend system to manage tickets efficiently
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 The application follows a **layered backend architecture** for maintainability and scalability.
 
-### 1️⃣ API Layer (REST Endpoints)
+### 1. API Layer (REST Endpoints)
 
 Responsibilities:
 
@@ -60,7 +60,7 @@ Responsibilities:
 - Return JSON responses
 - Manage HTTP status codes
 
-### 2️⃣ Authentication & Authorization
+### 2. Authentication & Authorization
 
 - JWT-based authentication
 - Stateless security
@@ -75,7 +75,7 @@ Responsibilities:
 
 ---
 
-### 3️⃣ Service / Business Logic Layer
+### 3. Service / Business Logic Layer
 
 Handles:
 
@@ -87,7 +87,7 @@ Handles:
 
 ---
 
-### 4️⃣ Data Access Layer
+### 4. Data Access Layer
 
 - ORM-based database interaction
 - CRUD operations
@@ -96,7 +96,7 @@ Handles:
 
 ---
 
-## 🗄️ Database Design
+## Database Design
 
 ### Database Used
 
@@ -112,7 +112,7 @@ Why MySQL?
 
 ---
 
-## 🧩 Data Models
+## Data Models
 
 ### User
 
@@ -157,7 +157,7 @@ Why MySQL?
 
 ---
 
-## 🔌 API Overview
+## API Overview
 
 ### Authentication
 
