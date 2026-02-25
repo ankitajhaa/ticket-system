@@ -260,7 +260,7 @@ Access rules:
 
 1. Clone Repository
 
-```json
+```bash
 git clone <https://github.com/ankitajhaa/ticket-system>
 ```
 
@@ -268,12 +268,12 @@ git clone <https://github.com/ankitajhaa/ticket-system>
 
 3.  Run application
 
-```json
+```bash
 mvn spring-boot:run
 ```
 
 4. Open Swagger UI
 
-```json
+```bash
 http://localhost:8080/swagger-ui/index.html
 ```
