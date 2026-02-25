@@ -261,7 +261,7 @@ Access rules:
 1. Clone Repository
 
 ```bash
-git clone <https://github.com/ankitajhaa/ticket-system>
+git clone https://github.com/ankitajhaa/ticket-system
 ```
 
 2. Configure database in application.properties
@@ -277,3 +277,15 @@ mvn spring-boot:run
 ```bash
 http://localhost:8080/swagger-ui/index.html
 ```
+
+### Assumptions & Design Decisions
+
+#### Assumptions
+- One ticket assigned to one agent
+- Authentication required for all APIs
+- Default ticket status = OPEN
+
+#### Key Decisions
+- JWT for authentication
+- RBAC for permission handling
+- Business logic handled in service layer
