@@ -14,25 +14,27 @@ public class AuditLog {
     @Column(name = "id")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "ticket_id", nullable = false)
     private Ticket ticket;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "updated_by", nullable = false)
     private Users updatedBy;
 
     @Column(name = "action_type", nullable = false)
     private String action;
 
+    @Lob
     @Column(name = "old_value", columnDefinition = "TEXT", nullable = false)
     private String old_value;
 
+    @Lob
     @Column(name = "new_value", columnDefinition = "TEXT", nullable = false)
     private String new_value;
 
     @CreationTimestamp
-    @Column(name = "timestamp", updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime timestamp;
 
     public AuditLog() {}

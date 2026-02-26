@@ -16,12 +16,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<?> handleBusiness(BusinessException ex) {
 
-        HttpStatus status =
-                ex.getMessage().contains("not found")
-                        ? HttpStatus.NOT_FOUND
-                        : HttpStatus.FORBIDDEN;
-
-        return ResponseEntity.status(status)
+        return ResponseEntity
+                .status(ex.getStatus())
                 .body(Map.of("error", ex.getMessage()));
     }
 
@@ -54,5 +50,11 @@ public class GlobalExceptionHandler {
                         "error",
                         "Authentication required"
                 ));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<?> handleGeneric(Exception ex) {
+        return ResponseEntity.status(500)
+                .body(Map.of("error", "Internal server error: " + ex.getMessage()));
     }
 }

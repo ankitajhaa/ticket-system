@@ -1,8 +1,6 @@
 package com.beginner_project.ticket_system.service;
 
-import com.beginner_project.ticket_system.dto.TicketCreateRequest;
-import com.beginner_project.ticket_system.dto.TicketResponse;
-import com.beginner_project.ticket_system.dto.TicketUpdateRequest;
+import com.beginner_project.ticket_system.dto.*;
 import com.beginner_project.ticket_system.entity.Users;
 import com.beginner_project.ticket_system.enums.Status;
 
@@ -18,9 +16,5 @@ public interface TicketService {
 
     TicketResponse assignToSelf(Long ticketId, Users agent);
 
-    TicketResponse updateTicket(
-            Long ticketId,
-            TicketUpdateRequest request,
-            Users user
-    );
+    TicketResponse updateTicket(Long ticketId, TicketUpdateRequest request, Users user);
 }

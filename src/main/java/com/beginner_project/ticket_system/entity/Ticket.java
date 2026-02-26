@@ -19,6 +19,7 @@ public class Ticket {
     @Column(name = "title", nullable = false)
     private String title;
 
+    @Lob
     @Column(name = "description", columnDefinition = "TEXT", nullable = false)
     private String description;
 
@@ -26,11 +27,11 @@ public class Ticket {
     @Column(name = "status", nullable = false)
     private Status status;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "created_by", nullable = false)
     private Users createdBy;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "assigned_agent")
     private Users assignedAgent;
 
