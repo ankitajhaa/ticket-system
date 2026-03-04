@@ -1,14 +1,19 @@
 package com.beginner_project.ticket_system.service;
 
 import com.beginner_project.ticket_system.dto.LoginResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 
+
 @Service
 public class AuthServiceImpl implements AuthService {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
 
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
@@ -27,7 +32,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public LoginResponse login(String username, String password) {
 
-        System.out.println("LOGIN ATTEMPT: " + username);
+        logger.info("LOGIN ATTEMPT: {}", username);
 
         // authenticate user
         authenticationManager.authenticate(
@@ -37,17 +42,17 @@ public class AuthServiceImpl implements AuthService {
                 )
         );
 
-        System.out.println("AUTH SUCCESS");
+        logger.info("Authentication successful for user: {}", username);
 
         UserDetails userDetails =
                 userDetailsService.loadUserByUsername(username);
 
-        System.out.println("JWT GENERATING...");
+        logger.debug("JWT GENERATING...");
 
         String accessToken = jwtService.generateToken(userDetails);
+        String refreshToken = jwtService.generateRefreshToken(userDetails);
 
-        // TEMP refresh token (real one later)
-        String refreshToken = accessToken;
+        logger.debug("Access and refresh tokens generated");
 
         return new LoginResponse(
                 accessToken,

@@ -1,20 +1,21 @@
 package com.beginner_project.ticket_system.dto;
 
+import com.beginner_project.ticket_system.enums.Action;
 import jakarta.validation.constraints.NotBlank;
 
 public class TicketUpdateRequest {
 
     @NotBlank
-    private String action;
+    private Action action;
 
     private String status;
     private Long assignedAgent;
 
-    public String getAction() {
+    public Action getAction() {
         return action;
     }
 
-    public void setAction(String action) {
+    public void setAction(Action action) {
         this.action = action;
     }
 

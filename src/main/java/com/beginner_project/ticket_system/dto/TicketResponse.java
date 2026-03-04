@@ -79,7 +79,8 @@ public class TicketResponse {
         return auditLogs;
     }
 
-    public void setAuditLogs(List<AuditLogResponse> auditLogs) {
+    public List<AuditLogResponse> setAuditLogs(List<AuditLogResponse> auditLogs) {
         this.auditLogs = auditLogs;
+        return auditLogs;
     }
 }

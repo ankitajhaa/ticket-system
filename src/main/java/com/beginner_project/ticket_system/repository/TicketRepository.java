@@ -1,4 +1,4 @@
-package com.beginner_project.ticket_system.dao;
+package com.beginner_project.ticket_system.repository;
 
 import com.beginner_project.ticket_system.entity.Ticket;
 import com.beginner_project.ticket_system.entity.Users;

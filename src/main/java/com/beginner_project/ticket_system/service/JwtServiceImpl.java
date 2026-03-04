@@ -21,6 +21,9 @@ public class JwtServiceImpl implements JwtService {
     // 1 hour expiration
     private static final long JWT_EXPIRATION = 1000 * 60 * 60;
 
+    // 7 days expiration for refresh token
+    private static final long REFRESH_EXPIRATION = 1000L * 60 * 60 * 24 * 7;
+
     private SecretKey getSignInKey() {
         byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
         return Keys.hmacShaKeyFor(keyBytes);
@@ -66,9 +69,23 @@ public class JwtServiceImpl implements JwtService {
 
         return Jwts.builder()
                 .setSubject(userDetails.getUsername())
+                .claim("type", "access")
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(
                         new Date(System.currentTimeMillis() + JWT_EXPIRATION)
+                )
+                .signWith(getSignInKey())
+                .compact();
+    }
+
+    @Override
+    public String generateRefreshToken(UserDetails userDetails) {
+        return Jwts.builder()
+                .setSubject(userDetails.getUsername())
+                .claim("type", "refresh")
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(
+                        new Date(System.currentTimeMillis() + REFRESH_EXPIRATION)
                 )
                 .signWith(getSignInKey())
                 .compact();

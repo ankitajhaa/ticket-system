@@ -2,20 +2,34 @@ package com.beginner_project.ticket_system.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import javax.naming.AuthenticationException;
 import java.util.Map;
+import java.util.Optional;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<?> handleUnreadable(HttpMessageNotReadableException ex) {
+        return ResponseEntity.badRequest()
+                .body(Map.of("error", "Invalid value in request. Check enums: Action (CLAIM, UPDATE_PROGRESS, ASSIGN), Status (OPEN, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED)"));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<?> handleAccessDenied() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("error", "Access denied"));
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<?> handleBusiness(BusinessException ex) {
-
         return ResponseEntity
                 .status(ex.getStatus())
                 .body(Map.of("error", ex.getMessage()));
@@ -23,21 +37,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<?> handleBadCredentials() {
-
-        return ResponseEntity.status(401)
-                .body(Map.of(
-                        "error", "Invalid credentials"
-                ));
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", "Invalid credentials"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<?> handleValidation(
-            MethodArgumentNotValidException ex
-    ) {
-
-        String error = ex.getBindingResult()
-                .getFieldError()
-                .getDefaultMessage();
+    public ResponseEntity<?> handleValidation(MethodArgumentNotValidException ex) {
+        String error = Optional.ofNullable(ex.getBindingResult().getFieldError())
+                .map(f -> f.getDefaultMessage())
+                .orElse("Validation failed");
 
         return ResponseEntity.badRequest()
                 .body(Map.of("error", error));
@@ -45,16 +53,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<?> handleAuth() {
-        return ResponseEntity.status(401)
-                .body(Map.of(
-                        "error",
-                        "Authentication required"
-                ));
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", "Authentication required"));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleGeneric(Exception ex) {
-        return ResponseEntity.status(500)
-                .body(Map.of("error", "Internal server error: " + ex.getMessage()));
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Internal server error"));
     }
 }

@@ -1,5 +1,6 @@
 package com.beginner_project.ticket_system.entity;
 
+import com.beginner_project.ticket_system.enums.Action;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -27,11 +28,11 @@ public class AuditLog {
 
     @Lob
     @Column(name = "old_value", columnDefinition = "TEXT", nullable = false)
-    private String old_value;
+    private String oldValue;
 
     @Lob
     @Column(name = "new_value", columnDefinition = "TEXT", nullable = false)
-    private String new_value;
+    private String newValue;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -39,12 +40,12 @@ public class AuditLog {
 
     public AuditLog() {}
 
-    public AuditLog(Ticket ticket_id, Users updated_by, String action, String old_value, String new_value) {
-        this.ticket = ticket_id;
-        this.updatedBy = updated_by;
-        this.action = action;
-        this.old_value = old_value;
-        this.new_value = new_value;
+    public AuditLog(Ticket ticket, Users updatedBy, Action action, String oldValue, String newValue) {
+        this.ticket = ticket;
+        this.updatedBy = updatedBy;
+        this.action = action.name();
+        this.oldValue = oldValue;
+        this.newValue = newValue;
     }
 
     public Long getId() {
@@ -55,20 +56,20 @@ public class AuditLog {
         this.id = id;
     }
 
-    public Ticket getTicket_id() {
+    public Ticket getTicketId() {
         return ticket;
     }
 
-    public void setTicket_id(Ticket ticket_id) {
-        this.ticket = ticket_id;
+    public void setTicketId(Ticket ticket) {
+        this.ticket = ticket;
     }
 
-    public Users getUpdated_by() {
+    public Users getUpdatedBy() {
         return updatedBy;
     }
 
-    public void setUpdated_by(Users updated_by) {
-        this.updatedBy = updated_by;
+    public void setUpdatedBy(Users updatedBy) {
+        this.updatedBy = updatedBy;
     }
 
     public String getAction() {
@@ -79,20 +80,20 @@ public class AuditLog {
         this.action = action;
     }
 
-    public String getOld_value() {
-        return old_value;
+    public String getOldValue() {
+        return oldValue;
     }
 
-    public void setOld_value(String old_value) {
-        this.old_value = old_value;
+    public void setOldValue(String oldValue) {
+        this.oldValue = oldValue;
     }
 
-    public String getNew_value() {
-        return new_value;
+    public String getNewValue() {
+        return newValue;
     }
 
-    public void setNew_value(String new_value) {
-        this.new_value = new_value;
+    public void setNewValue(String newValue) {
+        this.newValue = newValue;
     }
 
     public LocalDateTime getTimestamp() {

@@ -78,11 +78,9 @@ public class TicketController {
 
     private Users getCurrentUser() {
 
-        String username = SecurityContextHolder
+        return (Users) SecurityContextHolder
                 .getContext()
                 .getAuthentication()
-                .getName();
-
-        return userService.getByUsername(username);
+                .getPrincipal();
     }
 }

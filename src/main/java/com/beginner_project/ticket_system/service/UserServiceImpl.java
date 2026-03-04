@@ -1,6 +1,6 @@
 package com.beginner_project.ticket_system.service;
 
-import com.beginner_project.ticket_system.dao.UserRepository;
+import com.beginner_project.ticket_system.repository.UserRepository;
 import com.beginner_project.ticket_system.dto.UserSignupRequest;
 import com.beginner_project.ticket_system.entity.Users;
 import com.beginner_project.ticket_system.enums.Role;

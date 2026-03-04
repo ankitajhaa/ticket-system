@@ -14,7 +14,5 @@ public interface TicketService {
 
     TicketResponse getTicketById(Long id, Users user);
 
-    TicketResponse assignToSelf(Long ticketId, Users agent);
-
     TicketResponse updateTicket(Long ticketId, TicketUpdateRequest request, Users user);
 }

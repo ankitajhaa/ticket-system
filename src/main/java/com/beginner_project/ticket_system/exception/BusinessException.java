@@ -1,15 +1,17 @@
 package com.beginner_project.ticket_system.exception;
 
+import org.springframework.http.HttpStatus;
+
 public class BusinessException extends RuntimeException {
 
-    private final int status;
+    private final HttpStatus status;
 
-    public BusinessException(String message, int status) {
+    public BusinessException(String message, HttpStatus status) {
         super(message);
         this.status = status;
     }
 
-    public int getStatus() {
+    public HttpStatus getStatus() {
         return status;
     }
 }

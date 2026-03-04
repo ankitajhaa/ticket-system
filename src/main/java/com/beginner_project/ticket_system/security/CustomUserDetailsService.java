@@ -1,7 +1,6 @@
 package com.beginner_project.ticket_system.security;
 
-import com.beginner_project.ticket_system.dao.UserRepository;
-import com.beginner_project.ticket_system.entity.Users;
+import com.beginner_project.ticket_system.repository.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;

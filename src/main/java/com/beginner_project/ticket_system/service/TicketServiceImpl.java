@@ -1,8 +1,9 @@
 package com.beginner_project.ticket_system.service;
 
-import com.beginner_project.ticket_system.dao.AuditLogRepository;
-import com.beginner_project.ticket_system.dao.TicketRepository;
-import com.beginner_project.ticket_system.dao.UserRepository;
+import com.beginner_project.ticket_system.enums.Action;
+import com.beginner_project.ticket_system.repository.AuditLogRepository;
+import com.beginner_project.ticket_system.repository.TicketRepository;
+import com.beginner_project.ticket_system.repository.UserRepository;
 import com.beginner_project.ticket_system.dto.*;
 import com.beginner_project.ticket_system.entity.AuditLog;
 import com.beginner_project.ticket_system.entity.Ticket;
@@ -10,12 +11,18 @@ import com.beginner_project.ticket_system.entity.Users;
 import com.beginner_project.ticket_system.enums.Role;
 import com.beginner_project.ticket_system.enums.Status;
 import com.beginner_project.ticket_system.exception.BusinessException;
+import jakarta.transaction.Transactional;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
 @Service
 public class TicketServiceImpl implements TicketService {
+
+    private static final Logger logger = LoggerFactory.getLogger(TicketServiceImpl.class);
 
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
@@ -34,7 +41,14 @@ public class TicketServiceImpl implements TicketService {
     // ================= CREATE =================
 
     @Override
+    @Transactional
     public TicketResponse createTicket(TicketCreateRequest request, Users user) {
+
+        if (user.getRole() == Role.ADMIN) {
+            throw new BusinessException("Admins cannot create tickets", HttpStatus.FORBIDDEN);
+        }
+
+        logger.info("Creating ticket by user: {}", user.getUsername());
 
         Ticket ticket = new Ticket(
                 request.getTitle(),
@@ -57,9 +71,11 @@ public class TicketServiceImpl implements TicketService {
             try {
                 statusEnum = Status.valueOf(status.toUpperCase());
             } catch (Exception e) {
-                throw new BusinessException("Invalid status value", 400);
+                throw new BusinessException("Invalid status value", HttpStatus.BAD_REQUEST);
             }
         }
+
+        logger.info("Fetching tickets for user: {} with role: {}", user.getUsername(), user.getRole());
 
         List<Ticket> tickets;
 
@@ -92,35 +108,34 @@ public class TicketServiceImpl implements TicketService {
 
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() ->
-                        new BusinessException("Ticket not found", 404));
+                        new BusinessException("Ticket not found", HttpStatus.NOT_FOUND));
 
         if (user.getRole() == Role.SUPPORT_AGENT) {
             if (ticket.getAssignedAgent() == null ||
                     !ticket.getAssignedAgent().getId().equals(user.getId())) {
-
                 throw new BusinessException(
-                        "You do not have permission to view this ticket", 403);
+                        "You do not have permission to view this ticket", HttpStatus.FORBIDDEN);
             }
         }
 
         if (user.getRole() == Role.CUSTOMER &&
                 !ticket.getCreatedBy().getId().equals(user.getId())) {
-
             throw new BusinessException(
-                    "You do not have permission to view this ticket", 403);
+                    "You do not have permission to view this ticket", HttpStatus.FORBIDDEN);
         }
+
+        logger.info("Fetching ticket {} for user {}", id, user.getUsername());
 
         TicketResponse response = mapTicket(ticket);
 
-        if (user.getRole() == Role.ADMIN ||
-                user.getRole() == Role.SUPPORT_AGENT) {
+        if (user.getRole() == Role.ADMIN || user.getRole() == Role.SUPPORT_AGENT) {
 
             List<AuditLogResponse> logs =
                     auditLogRepository.findByTicket(ticket)
                             .stream()
                             .map(a -> new AuditLogResponse(
                                     a.getId(),
-                                    a.getUpdated_by().getUsername(),
+                                    a.getUpdatedBy().getUsername(),
                                     a.getAction(),
                                     a.getTimestamp()
                             ))
@@ -132,75 +147,43 @@ public class TicketServiceImpl implements TicketService {
         return response;
     }
 
-    // ================= ASSIGN TO SELF =================
-
-    @Override
-    public TicketResponse assignToSelf(Long ticketId, Users agent) {
-
-        Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() ->
-                        new BusinessException("Ticket not found", 404));
-
-        if (ticket.getStatus() == Status.CLOSED)
-            throw new BusinessException("Closed ticket cannot be modified", 409);
-
-        if (ticket.getAssignedAgent() != null)
-            throw new BusinessException("Ticket already assigned", 409);
-
-        ticket.setAssignedAgent(agent);
-        ticket.setStatus(Status.ASSIGNED);
-
-        Ticket saved = ticketRepository.save(ticket);
-
-        AuditLog log = new AuditLog(
-                saved,
-                agent,
-                "claim",
-                "OPEN",
-                "ASSIGNED"
-        );
-
-        auditLogRepository.save(log);
-
-        return mapTicket(saved);
-    }
-
     // ================= UPDATE =================
 
     @Override
+    @Transactional
     public TicketResponse updateTicket(
             Long ticketId,
             TicketUpdateRequest request,
             Users user
     ) {
 
+        logger.info("User {} performing {} on ticket {}",
+                user.getUsername(), request.getAction(), ticketId);
+
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() ->
-                        new BusinessException("Ticket does not exist", 404));
+                        new BusinessException("Ticket does not exist", HttpStatus.NOT_FOUND));
 
         if (ticket.getStatus() == Status.CLOSED)
-            throw new BusinessException("Closed tickets cannot be modified", 409);
+            throw new BusinessException("Closed tickets cannot be modified", HttpStatus.CONFLICT);
 
-        if (request.getAction() == null)
-            throw new BusinessException("Invalid request data", 400);
-
-        String action = request.getAction().toLowerCase();
+        Action action = request.getAction();
         String oldValue = ticket.getStatus().name();
 
         switch (action) {
 
-            case "claim" -> {
+            case CLAIM -> {
                 if (user.getRole() != Role.SUPPORT_AGENT)
-                    throw new BusinessException("You are not allowed", 403);
+                    throw new BusinessException("You are not allowed", HttpStatus.FORBIDDEN);
 
                 if (ticket.getAssignedAgent() != null)
-                    throw new BusinessException("Ticket already assigned", 409);
+                    throw new BusinessException("Ticket already assigned", HttpStatus.CONFLICT);
 
                 ticket.setAssignedAgent(user);
                 ticket.setStatus(Status.ASSIGNED);
             }
 
-            case "update_progress" -> {
+            case UPDATE_PROGRESS -> {
 
                 boolean isAssignedAgent =
                         ticket.getAssignedAgent() != null &&
@@ -208,46 +191,43 @@ public class TicketServiceImpl implements TicketService {
 
                 if (user.getRole() != Role.ADMIN &&
                         !(user.getRole() == Role.SUPPORT_AGENT && isAssignedAgent)) {
-
-                    throw new BusinessException("You are not allowed", 403);
+                    throw new BusinessException("You are not allowed", HttpStatus.FORBIDDEN);
                 }
 
-                Status newStatus;
+                if (request.getStatus() == null)
+                    throw new BusinessException("Status is required for UPDATE_PROGRESS", HttpStatus.BAD_REQUEST);
 
+                Status newStatus;
                 try {
-                    newStatus =
-                            Status.valueOf(request.getStatus().toUpperCase());
+                    newStatus = Status.valueOf(request.getStatus().toUpperCase());
                 } catch (Exception e) {
-                    throw new BusinessException("Invalid request data", 400);
+                    throw new BusinessException("Invalid status value", HttpStatus.BAD_REQUEST);
                 }
 
                 ticket.setStatus(newStatus);
             }
 
-            case "assign" -> {
+            case ASSIGN -> {
 
                 if (user.getRole() != Role.ADMIN)
                     throw new BusinessException(
-                            "You are not allowed to perform this action", 403);
+                            "You are not allowed to perform this action", HttpStatus.FORBIDDEN);
 
                 if (request.getAssignedAgent() == null)
-                    throw new BusinessException("Invalid request data", 400);
+                    throw new BusinessException("Agent id is required", HttpStatus.BAD_REQUEST);
 
-                Users agent = userRepository.findById(
-                        request.getAssignedAgent()
-                ).orElseThrow(() ->
-                        new BusinessException("Agent not found", 404));
+                Users agent = userRepository.findById(request.getAssignedAgent())
+                        .orElseThrow(() ->
+                                new BusinessException("Agent not found", HttpStatus.NOT_FOUND));
 
                 ticket.setAssignedAgent(agent);
                 ticket.setStatus(Status.ASSIGNED);
             }
-
-            default -> throw new BusinessException("Invalid request data", 400);
         }
 
         Ticket saved = ticketRepository.save(ticket);
 
-        auditLogRepository.save(
+        AuditLog log = auditLogRepository.save(
                 new AuditLog(
                         saved,
                         user,
@@ -257,7 +237,16 @@ public class TicketServiceImpl implements TicketService {
                 )
         );
 
-        return mapTicket(saved);
+        TicketResponse response = mapTicket(saved);
+
+        response.setAuditLogs(List.of(new AuditLogResponse(
+                log.getId(),
+                log.getUpdatedBy().getUsername(),
+                log.getAction(),
+                log.getTimestamp()
+        )));
+
+        return response;
     }
 
     // ================= MAPPERS =================
