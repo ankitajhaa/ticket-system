@@ -1,11 +1,9 @@
 package com.beginner_project.ticket_system.dto;
 
 import com.beginner_project.ticket_system.enums.Action;
-import jakarta.validation.constraints.NotBlank;
 
 public class TicketUpdateRequest {
 
-    @NotBlank
     private Action action;
 
     private String status;
