@@ -1,5 +1,6 @@
 package com.beginner_project.ticket_system.entity;
 
+import com.beginner_project.ticket_system.enums.Priority;
 import com.beginner_project.ticket_system.enums.Status;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -26,6 +27,16 @@ public class Ticket {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private Status status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name= "priority",nullable = false)
+    private Priority priority;
+
+    @Column(name="sla_deadline")
+    private LocalDateTime slaDeadline;
+
+    @Column(name="sla_breached", nullable=false)
+    private Boolean slaBreached =false;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "created_by", nullable = false)
