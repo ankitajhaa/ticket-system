@@ -1,5 +1,7 @@
 package com.beginner_project.ticket_system.dto;
 
+import com.beginner_project.ticket_system.enums.Priority;
+
 import jakarta.validation.constraints.NotBlank;
 
 public class TicketCreateRequest {
@@ -9,6 +11,16 @@ public class TicketCreateRequest {
 
     @NotBlank(message = "Description is required")
     private String description;
+
+    private Priority priority;
+
+    public Priority getPriority() {
+        return priority;
+    }
+
+    public void setPriority(Priority priority) {
+        this.priority = priority;
+    }
 
     public TicketCreateRequest() {}
 

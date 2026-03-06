@@ -18,9 +18,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<?> handleUnreadable(HttpMessageNotReadableException ex) {
-        return ResponseEntity.badRequest()
-                .body(Map.of("error", "Invalid value in request. Check enums: Action (CLAIM, UPDATE_PROGRESS, ASSIGN), Status (OPEN, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED)"));
-    }
+    return ResponseEntity.badRequest()
+            .body(Map.of("error", "Invalid value in request. Check enums: " +
+                    "Action (CLAIM, UPDATE_PROGRESS, ASSIGN, SET_PRIORITY, ESCALATE), " +
+                    "Status (OPEN, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED, ESCALATED), " +
+                    "Priority (LOW, MEDIUM, HIGH, CRITICAL)"));
+}
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<?> handleAccessDenied() {

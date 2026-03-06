@@ -1,11 +1,14 @@
 package com.beginner_project.ticket_system.service;
 
 import com.beginner_project.ticket_system.enums.Action;
+import com.beginner_project.ticket_system.enums.Priority;
 import com.beginner_project.ticket_system.repository.AuditLogRepository;
+import com.beginner_project.ticket_system.repository.SLAConfigRepository;
 import com.beginner_project.ticket_system.repository.TicketRepository;
 import com.beginner_project.ticket_system.repository.UserRepository;
 import com.beginner_project.ticket_system.dto.*;
 import com.beginner_project.ticket_system.entity.AuditLog;
+import com.beginner_project.ticket_system.entity.SLAConfig;
 import com.beginner_project.ticket_system.entity.Ticket;
 import com.beginner_project.ticket_system.entity.Users;
 import com.beginner_project.ticket_system.enums.Role;
@@ -17,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -27,18 +31,20 @@ public class TicketServiceImpl implements TicketService {
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final AuditLogRepository auditLogRepository;
+    private final SLAConfigRepository slaConfigRepository;
 
     public TicketServiceImpl(
             TicketRepository ticketRepository,
             UserRepository userRepository,
-            AuditLogRepository auditLogRepository
+            AuditLogRepository auditLogRepository,
+            SLAConfigRepository slaConfigRepository
     ) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.auditLogRepository = auditLogRepository;
+        this.slaConfigRepository=slaConfigRepository;
     }
 
-    // ================= CREATE =================
 
     @Override
     @Transactional
@@ -49,18 +55,33 @@ public class TicketServiceImpl implements TicketService {
         }
 
         logger.info("Creating ticket by user: {}", user.getUsername());
+        Priority priority=request.getPriority();
+         if(priority==null)
+        {
+            priority=Priority.MEDIUM;
+        }
 
+        SLAConfig slaConfig=slaConfigRepository.findByPriority(priority);
+        if(slaConfig==null)
+        {
+            throw new BusinessException("SLA Config not found for priority" +priority,HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        LocalDateTime slaDeadline= LocalDateTime.now().plusHours(slaConfig.getResolutionHours());
+
+       
         Ticket ticket = new Ticket(
                 request.getTitle(),
-                request.getDescription(),
+                request.getDescription(), 
                 Status.OPEN,
+                priority,
+                slaDeadline,
                 user
         );
 
         return mapTicket(ticketRepository.save(ticket));
     }
 
-    // ================= LIST =================
+    
 
     @Override
     public List<TicketResponse> getTicketsForUser(Users user, String status) {
@@ -223,17 +244,46 @@ public class TicketServiceImpl implements TicketService {
                 ticket.setAssignedAgent(agent);
                 ticket.setStatus(Status.ASSIGNED);
             }
+
+            case SET_PRIORITY -> {
+
+    if (user.getRole() != Role.ADMIN && user.getRole() != Role.SUPPORT_AGENT)
+        throw new BusinessException("You are not allowed to perform this action", HttpStatus.FORBIDDEN);
+
+    if (request.getPriority() == null)
+        throw new BusinessException("Priority is required for SET_PRIORITY", HttpStatus.BAD_REQUEST);
+
+    Priority newPriority = request.getPriority();
+
+    if (ticket.getPriority() == newPriority)
+        throw new BusinessException("Ticket already has this priority", HttpStatus.CONFLICT);
+
+    if (ticket.getStatus() == Status.RESOLVED || ticket.getStatus() == Status.CLOSED)
+        throw new BusinessException("Cannot change priority on resolved or closed tickets", HttpStatus.CONFLICT);
+
+    SLAConfig slaConfig = slaConfigRepository.findByPriority(newPriority);
+    if (slaConfig == null)
+        throw new BusinessException("SLA config not found for priority: " + newPriority, HttpStatus.INTERNAL_SERVER_ERROR);
+
+    oldValue = "priority=" + ticket.getPriority() + ",slaDeadline=" + ticket.getSlaDeadline();
+    LocalDateTime newDeadline = LocalDateTime.now().plusHours(slaConfig.getResolutionHours());
+    ticket.setPriority(newPriority);
+    ticket.setSlaDeadline(newDeadline);
+    ticket.setSlaBreached(false);
+}
         }
 
         Ticket saved = ticketRepository.save(ticket);
-
+        String newValue = (action == Action.SET_PRIORITY)
+    ? "priority=" + saved.getPriority() + ",slaDeadline=" + saved.getSlaDeadline()
+    : saved.getStatus().name();
         AuditLog log = auditLogRepository.save(
                 new AuditLog(
                         saved,
                         user,
                         action,
                         oldValue,
-                        saved.getStatus().name()
+                        newValue
                 )
         );
 
@@ -249,22 +299,24 @@ public class TicketServiceImpl implements TicketService {
         return response;
     }
 
-    // ================= MAPPERS =================
 
     private TicketResponse mapTicket(Ticket ticket) {
 
-        TicketResponse response = new TicketResponse();
+    TicketResponse response = new TicketResponse();
 
-        response.setId(ticket.getId());
-        response.setTitle(ticket.getTitle());
-        response.setDescription(ticket.getDescription());
-        response.setStatus(ticket.getStatus().name());
-        response.setCreatedBy(mapUser(ticket.getCreatedBy()));
-        response.setAssignedAgent(mapUser(ticket.getAssignedAgent()));
-        response.setCreatedAt(ticket.getCreatedAt());
+    response.setId(ticket.getId());
+    response.setTitle(ticket.getTitle());
+    response.setDescription(ticket.getDescription());
+    response.setStatus(ticket.getStatus().name());
+    response.setPriority(ticket.getPriority() != null ? ticket.getPriority().name() : null);
+    response.setSlaDeadline(ticket.getSlaDeadline());
+    response.setSlaBreached(ticket.getSlaBreached());
+    response.setCreatedBy(mapUser(ticket.getCreatedBy()));
+    response.setAssignedAgent(mapUser(ticket.getAssignedAgent()));
+    response.setCreatedAt(ticket.getCreatedAt());
 
-        return response;
-    }
+    return response;
+}
 
     private UserResponse mapUser(Users user) {
 
