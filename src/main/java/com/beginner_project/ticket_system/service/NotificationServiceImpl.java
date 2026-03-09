@@ -35,13 +35,14 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    @Async
+
     public void sendNotification(Ticket ticket, String recipientEmail,
                                   NotificationType type, String subject, String body) {
 
-        // skippinggg
+        // skippinggg app ;level , just select query so fast handles most cases
+        //db level check jo hai handles race conditions not catched by this and throws exception
         boolean alreadySent = notificationLogRepository
-                .existsByTicketAndRecipientEmailAndNotificationTypeAndStatus(
+                .existsByTicketAndRecipientEmailAndNotificationTypeAndStatusAndInvalidatedFalse(
                         ticket, recipientEmail, type, NotificationStatus.SENT);
 
         if (alreadySent) {
@@ -60,7 +61,15 @@ public class NotificationServiceImpl implements NotificationService {
         log.setLastAttemptAt(LocalDateTime.now());
         log.setSubject(subject);
         log.setBody(body);
-        notificationLogRepository.save(log);
+
+        try{
+           notificationLogRepository.save(log);
+        } catch(Exception e)
+        {
+            logger.warn("Duplicate notification blocked by DB constraint for ticket id {} of type {} sent to {}", 
+                    ticket.getId(), type, recipientEmail);
+                    return;
+        }      
         attemptSend(log, subject, body);
     }
 
@@ -75,8 +84,8 @@ public class NotificationServiceImpl implements NotificationService {
         }
         attemptSend(log, log.getSubject(), log.getBody());
     }
-
-    private void attemptSend(NotificationLog log, String subject, String body) {
+     @Async
+     void attemptSend(NotificationLog log, String subject, String body) {
         try {
             emailService.sendEmail(log.getRecipientEmail(), subject, body);
             log.setStatus(NotificationStatus.SENT);

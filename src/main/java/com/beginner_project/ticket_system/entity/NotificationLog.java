@@ -47,6 +47,17 @@ public class NotificationLog {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "invalidated", nullable = false)
+    private Boolean invalidated = false;
+
+    public Boolean getInvalidated() {
+        return invalidated;
+    }
+
+    public void setInvalidated(Boolean invalidated) {
+        this.invalidated = invalidated;
+    }
+
     public NotificationLog() {}
 
     public Long getId() {

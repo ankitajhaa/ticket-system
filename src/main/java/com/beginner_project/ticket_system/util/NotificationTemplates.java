@@ -1,7 +1,7 @@
 package com.beginner_project.ticket_system.util;
 
 import com.beginner_project.ticket_system.entity.Ticket;
-import com.beginner_project.ticket_system.entity.Users;
+
 
 public class NotificationTemplates {
 

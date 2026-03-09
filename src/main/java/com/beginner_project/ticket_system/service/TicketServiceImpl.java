@@ -4,27 +4,31 @@ import com.beginner_project.ticket_system.enums.Action;
 import com.beginner_project.ticket_system.enums.NotificationType;
 import com.beginner_project.ticket_system.enums.Priority;
 import com.beginner_project.ticket_system.repository.AuditLogRepository;
+import com.beginner_project.ticket_system.repository.NotificationLogRepository;
 import com.beginner_project.ticket_system.repository.SLAConfigRepository;
 import com.beginner_project.ticket_system.repository.TicketRepository;
 import com.beginner_project.ticket_system.repository.UserRepository;
 import com.beginner_project.ticket_system.util.NotificationTemplates;
 import com.beginner_project.ticket_system.dto.*;
 import com.beginner_project.ticket_system.entity.AuditLog;
+import com.beginner_project.ticket_system.entity.NotificationLog;
 import com.beginner_project.ticket_system.entity.SLAConfig;
 import com.beginner_project.ticket_system.entity.Ticket;
 import com.beginner_project.ticket_system.entity.Users;
 import com.beginner_project.ticket_system.enums.Role;
 import com.beginner_project.ticket_system.enums.Status;
 import com.beginner_project.ticket_system.exception.BusinessException;
-import jakarta.transaction.Transactional;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Transactional
 @Service
 public class TicketServiceImpl implements TicketService {
 
@@ -34,6 +38,7 @@ public class TicketServiceImpl implements TicketService {
     private final UserRepository userRepository;
     private final AuditLogRepository auditLogRepository;
     private final SLAConfigRepository slaConfigRepository;
+    private final NotificationLogRepository notificationLogRepository;
     private final NotificationService notificationService;
 
     public TicketServiceImpl(
@@ -41,19 +46,21 @@ public class TicketServiceImpl implements TicketService {
             UserRepository userRepository,
             AuditLogRepository auditLogRepository,
             SLAConfigRepository slaConfigRepository,
-            NotificationService notificationService
+            NotificationService notificationService,
+            NotificationLogRepository notificationLogRepository
     ) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.auditLogRepository = auditLogRepository;
         this.slaConfigRepository = slaConfigRepository;
         this.notificationService = notificationService;
+        this.notificationLogRepository = notificationLogRepository;
     }
 
     // ================= CREATE =================
 
     @Override
-    @Transactional
+    
     public TicketResponse createTicket(TicketCreateRequest request, Users user) {
 
         if (user.getRole() == Role.ADMIN) {
@@ -169,7 +176,6 @@ public class TicketServiceImpl implements TicketService {
     // ================= UPDATE =================
 
     @Override
-    @Transactional
     public TicketResponse updateTicket(
             Long ticketId,
             TicketUpdateRequest request,
@@ -196,6 +202,13 @@ public class TicketServiceImpl implements TicketService {
                     throw new BusinessException("You are not allowed", HttpStatus.FORBIDDEN);
                 if (ticket.getAssignedAgent() != null)
                     throw new BusinessException("Ticket already assigned", HttpStatus.CONFLICT);
+
+                notificationLogRepository.invalidateByTicketAndNotificationTypeIn(
+            ticket,
+            List.of(NotificationType.SLA_BREACH, NotificationType.SLA_WARNING,
+                    NotificationType.TICKET_ASSIGNED)
+    );
+
                 ticket.setAssignedAgent(user);
                 ticket.setStatus(Status.ASSIGNED);
             }
@@ -215,6 +228,12 @@ public class TicketServiceImpl implements TicketService {
                 } catch (Exception e) {
                     throw new BusinessException("Invalid status value", HttpStatus.BAD_REQUEST);
                 }
+                if (newStatus == Status.RESOLVED || newStatus == Status.CLOSED) {
+        notificationLogRepository.invalidateByTicketAndNotificationTypeIn(
+                ticket,
+                List.of(NotificationType.SLA_BREACH, NotificationType.SLA_WARNING)
+        );
+    }
                 ticket.setStatus(newStatus);
             }
 
@@ -227,6 +246,13 @@ public class TicketServiceImpl implements TicketService {
                 Users agent = userRepository.findById(request.getAssignedAgent())
                         .orElseThrow(() ->
                                 new BusinessException("Agent not found", HttpStatus.NOT_FOUND));
+
+
+                 notificationLogRepository.invalidateByTicketAndNotificationTypeIn(
+            ticket,
+            List.of(NotificationType.SLA_BREACH, NotificationType.SLA_WARNING,
+                    NotificationType.TICKET_ASSIGNED)
+    );                
                 ticket.setAssignedAgent(agent);
                 ticket.setStatus(Status.ASSIGNED);
             }
@@ -246,6 +272,13 @@ public class TicketServiceImpl implements TicketService {
                     throw new BusinessException("SLA config not found for priority: " + newPriority, HttpStatus.INTERNAL_SERVER_ERROR);
                 oldValue = "priority=" + ticket.getPriority() + ",slaDeadline=" + ticket.getSlaDeadline();
                 LocalDateTime newDeadline = LocalDateTime.now().plusHours(slaConfig.getResolutionHours());
+
+
+                 notificationLogRepository.invalidateByTicketAndNotificationTypeIn(
+            ticket,
+            List.of(NotificationType.SLA_BREACH, NotificationType.SLA_WARNING)
+    );
+
                 ticket.setPriority(newPriority);
                 ticket.setSlaDeadline(newDeadline);
                 ticket.setSlaBreached(false);
