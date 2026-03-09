@@ -29,6 +29,14 @@ public class NotificationLog {
     @Column(name = "status", nullable = false)
     private NotificationStatus status;
 
+    @Column(name="subject")
+    private String subject;
+    
+    //column definition needed to make sure text format and no limit on characters
+    //usually 255.
+    @Column(name="body", columnDefinition="TEXT")
+    private String body;
+
     @Column(name = "retry_count", nullable = false)
     private Integer retryCount = 0;
 
@@ -103,6 +111,22 @@ public class NotificationLog {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getSubject() {
+        return subject;
+    }
+
+    public void setSubject(String subject) {
+        this.subject = subject;
+    }
+
+    public String getBody() {
+        return body;
+    }
+
+    public void setBody(String body) {
+        this.body = body;
     }
 
     
