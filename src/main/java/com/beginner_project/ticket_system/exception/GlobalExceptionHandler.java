@@ -6,10 +6,13 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 
@@ -65,4 +68,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "Internal server error"));
     }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+public ResponseEntity<?> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+    String message;
+    if (ex.getRequiredType() != null && 
+        ex.getRequiredType().equals(LocalDateTime.class)) {
+        message = "Invalid date format for '" + ex.getName() + 
+                  "'. Use ISO format: yyyy-MM-ddTHH:mm:ss (e.g. 2026-03-06T00:00:00)";
+    } else {
+        message = "Invalid value for parameter '" + ex.getName() + "'";
+    }
+    return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(Map.of("error", message));
+}
 }

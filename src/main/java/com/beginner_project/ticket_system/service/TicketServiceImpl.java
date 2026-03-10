@@ -8,6 +8,7 @@ import com.beginner_project.ticket_system.repository.NotificationLogRepository;
 import com.beginner_project.ticket_system.repository.SLAConfigRepository;
 import com.beginner_project.ticket_system.repository.TicketRepository;
 import com.beginner_project.ticket_system.repository.UserRepository;
+import com.beginner_project.ticket_system.specification.TicketSpecification;
 import com.beginner_project.ticket_system.util.NotificationTemplates;
 import com.beginner_project.ticket_system.dto.*;
 import com.beginner_project.ticket_system.entity.AuditLog;
@@ -19,11 +20,15 @@ import com.beginner_project.ticket_system.enums.Role;
 import com.beginner_project.ticket_system.enums.Status;
 import com.beginner_project.ticket_system.exception.BusinessException;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -337,6 +342,34 @@ public class TicketServiceImpl implements TicketService {
         )));
         return response;
     }
+
+
+    @Override
+public Page<TicketResponse> searchTickets(
+        TicketFilterRequest filter,
+        int page,
+        int size,
+        String sortBy,
+        String sortDir,
+        Users user
+) {
+    // build sort direction
+    Sort.Direction direction = sortDir.equalsIgnoreCase("asc") 
+            ? Sort.Direction.ASC 
+            : Sort.Direction.DESC;
+
+    // build pageable — page number, size, sort field and direction
+    Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+    // build specification with filters + role based access
+    TicketSpecification spec = new TicketSpecification(filter, user);
+
+    // execute query — returns Page<Ticket>
+    Page<Ticket> tickets = ticketRepository.findAll(spec, pageable);
+
+    // map to Page<TicketResponse>
+    return tickets.map(this::mapTicket);
+}
 
     // ================= MAPPERS =================
 

@@ -35,7 +35,7 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-
+  
     public void sendNotification(Ticket ticket, String recipientEmail,
                                   NotificationType type, String subject, String body) {
 
@@ -84,7 +84,7 @@ public class NotificationServiceImpl implements NotificationService {
         }
         attemptSend(log, log.getSubject(), log.getBody());
     }
-     @Async
+    @Async
      void attemptSend(NotificationLog log, String subject, String body) {
         try {
             emailService.sendEmail(log.getRecipientEmail(), subject, body);

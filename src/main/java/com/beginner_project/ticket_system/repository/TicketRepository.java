@@ -5,13 +5,14 @@ import com.beginner_project.ticket_system.entity.Users;
 import com.beginner_project.ticket_system.enums.Status;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-public interface TicketRepository extends JpaRepository<Ticket, Long> {
+public interface TicketRepository extends JpaRepository<Ticket, Long>,JpaSpecificationExecutor<Ticket> {
 
     @EntityGraph(attributePaths = {"createdBy", "assignedAgent"})
     List<Ticket> findByCreatedBy(Users user);
