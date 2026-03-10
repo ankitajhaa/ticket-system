@@ -1,9 +1,11 @@
 package com.beginner_project.ticket_system.service;
 
 import com.beginner_project.ticket_system.enums.Action;
+import com.beginner_project.ticket_system.enums.CommentType;
 import com.beginner_project.ticket_system.enums.NotificationType;
 import com.beginner_project.ticket_system.enums.Priority;
 import com.beginner_project.ticket_system.repository.AuditLogRepository;
+import com.beginner_project.ticket_system.repository.CommentRepository;
 import com.beginner_project.ticket_system.repository.NotificationLogRepository;
 import com.beginner_project.ticket_system.repository.SLAConfigRepository;
 import com.beginner_project.ticket_system.repository.TicketRepository;
@@ -12,6 +14,7 @@ import com.beginner_project.ticket_system.specification.TicketSpecification;
 import com.beginner_project.ticket_system.util.NotificationTemplates;
 import com.beginner_project.ticket_system.dto.*;
 import com.beginner_project.ticket_system.entity.AuditLog;
+import com.beginner_project.ticket_system.entity.Comment;
 import com.beginner_project.ticket_system.entity.NotificationLog;
 import com.beginner_project.ticket_system.entity.SLAConfig;
 import com.beginner_project.ticket_system.entity.Ticket;
@@ -45,6 +48,7 @@ public class TicketServiceImpl implements TicketService {
     private final SLAConfigRepository slaConfigRepository;
     private final NotificationLogRepository notificationLogRepository;
     private final NotificationService notificationService;
+    private final CommentRepository commentRepository;
 
     public TicketServiceImpl(
             TicketRepository ticketRepository,
@@ -52,14 +56,16 @@ public class TicketServiceImpl implements TicketService {
             AuditLogRepository auditLogRepository,
             SLAConfigRepository slaConfigRepository,
             NotificationService notificationService,
-            NotificationLogRepository notificationLogRepository
-    ) {
+            NotificationLogRepository notificationLogRepository,
+            CommentRepository commentRepository)
+    {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.auditLogRepository = auditLogRepository;
         this.slaConfigRepository = slaConfigRepository;
         this.notificationService = notificationService;
         this.notificationLogRepository = notificationLogRepository;
+        this.commentRepository=commentRepository;
     }
 
     // ================= CREATE =================
@@ -175,6 +181,18 @@ public class TicketServiceImpl implements TicketService {
             response.setAuditLogs(logs);
         }
 
+        List<Comment>comments;
+
+        if(user.getRole()==Role.CUSTOMER)
+        {
+            comments=commentRepository.findByTicketAndCommentType(ticket,CommentType.PUBLIC);
+        }
+        else
+        {
+            comments=commentRepository.findByTicket(ticket);
+        }
+
+        response.setComments(comments.stream().map(c->new CommentResponse(c.getId(),c.getAuthor().getUsername(),c.getContent(),c.getCommentType().name(),c.getCreatedAt())).toList());
         return response;
     }
 

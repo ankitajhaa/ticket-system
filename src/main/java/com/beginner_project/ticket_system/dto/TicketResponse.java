@@ -16,6 +16,15 @@ public class TicketResponse {
     private UserResponse assignedAgent;
     private LocalDateTime createdAt;
     private List<AuditLogResponse> auditLogs;
+    private List<CommentResponse>comments;
+
+    public List<CommentResponse> getComments() {
+        return comments;
+    }
+
+    public void setComments(List<CommentResponse> comments) {
+        this.comments = comments;
+    }
 
     public TicketResponse() {}
 
