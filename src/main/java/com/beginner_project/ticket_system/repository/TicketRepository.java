@@ -26,6 +26,9 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>,JpaSpecifi
     @EntityGraph(attributePaths = {"createdBy", "assignedAgent"})
     List<Ticket> findByAssignedAgentAndStatus(Users user, Status status);
 
+     @EntityGraph(attributePaths = {"createdBy", "assignedAgent"})
+    List<Ticket> findBySlaBreached(Boolean slaBreached);
+
     @EntityGraph(attributePaths = {"createdBy", "assignedAgent"})
     List<Ticket> findByCreatedByAndStatus(Users user, Status status);
 

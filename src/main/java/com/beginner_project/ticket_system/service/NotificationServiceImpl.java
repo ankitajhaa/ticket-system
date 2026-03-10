@@ -41,6 +41,7 @@ public class NotificationServiceImpl implements NotificationService {
 
         // skippinggg app ;level , just select query so fast handles most cases
         //db level check jo hai handles race conditions not catched by this and throws exception
+       
         boolean alreadySent = notificationLogRepository
                 .existsByTicketAndRecipientEmailAndNotificationTypeAndStatusAndInvalidatedFalse(
                         ticket, recipientEmail, type, NotificationStatus.SENT);
@@ -50,9 +51,12 @@ public class NotificationServiceImpl implements NotificationService {
                     ticket.getId(), type, recipientEmail);
             return;
         }
+    
 
         //saving as pending so mid crash still has it and can run again 
         NotificationLog log = new NotificationLog();
+
+        
         log.setTicket(ticket);
         log.setRecipientEmail(recipientEmail);
         log.setNotificationType(type);

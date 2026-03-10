@@ -1,6 +1,4 @@
 package com.beginner_project.ticket_system.dto;
-
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 public class LoginRequest {

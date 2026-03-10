@@ -15,7 +15,6 @@ import com.beginner_project.ticket_system.util.NotificationTemplates;
 import com.beginner_project.ticket_system.dto.*;
 import com.beginner_project.ticket_system.entity.AuditLog;
 import com.beginner_project.ticket_system.entity.Comment;
-import com.beginner_project.ticket_system.entity.NotificationLog;
 import com.beginner_project.ticket_system.entity.SLAConfig;
 import com.beginner_project.ticket_system.entity.Ticket;
 import com.beginner_project.ticket_system.entity.Users;

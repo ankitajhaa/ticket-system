@@ -9,7 +9,6 @@ import com.beginner_project.ticket_system.enums.Priority;
 import com.beginner_project.ticket_system.enums.Status;
 import com.beginner_project.ticket_system.exception.BusinessException;
 import com.beginner_project.ticket_system.service.TicketService;
-import com.beginner_project.ticket_system.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -25,11 +24,9 @@ import java.time.LocalDateTime;
 public class TicketController {
 
     private final TicketService ticketService;
-    private final UserService userService;
 
-    public TicketController(TicketService ticketService, UserService userService) {
+    public TicketController(TicketService ticketService) {
         this.ticketService = ticketService;
-        this.userService = userService;
     }
 
     @PostMapping

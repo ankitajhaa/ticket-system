@@ -1,5 +1,7 @@
 package com.beginner_project.ticket_system.util;
 
+import java.util.List;
+
 import com.beginner_project.ticket_system.entity.Ticket;
 
 
@@ -105,7 +107,7 @@ public class NotificationTemplates {
 
     public static String importCompleteBody(String adminName, int total,
                                              int success, int failed,
-                                             String failureDetails) {
+                                             List<String> failureDetails) {
         return "Hi " + adminName + ",\n\n" +
                "Your bulk ticket import has been completed.\n\n" +
                "Total Records : " + total + "\n" +
