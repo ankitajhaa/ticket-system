@@ -269,9 +269,9 @@ public class TicketServiceImpl implements TicketService {
     }
               if (newStatus == Status.RESOLVED) {
         ticketMetrics.incrementTicketsResolved();
-        long hoursToResolve = ChronoUnit.HOURS.between(
+        long secondsToResolve = ChronoUnit.SECONDS.between(
                 ticket.getCreatedAt(), LocalDateTime.now());
-        ticketMetrics.recordResolutionTime(hoursToResolve);
+        ticketMetrics.recordResolutionTime(secondsToResolve);
     }
  
                 ticket.setStatus(newStatus);

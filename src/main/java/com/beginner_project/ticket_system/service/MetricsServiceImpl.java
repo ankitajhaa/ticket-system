@@ -3,6 +3,7 @@ package com.beginner_project.ticket_system.service;
 import com.beginner_project.ticket_system.dto.MetricsResponse;
 import com.beginner_project.ticket_system.enums.Status;
 import com.beginner_project.ticket_system.exception.BusinessException;
+import com.beginner_project.ticket_system.metrics.TicketMetrics;
 import com.beginner_project.ticket_system.repository.TicketRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.http.HttpStatus;
@@ -17,40 +18,40 @@ public class MetricsServiceImpl implements MetricsService {
 
     private final MeterRegistry meterRegistry;
     private final TicketRepository ticketRepository;
+    private final TicketMetrics ticketMetrics;
 
     public MetricsServiceImpl(MeterRegistry meterRegistry,
-                               TicketRepository ticketRepository) {
+                               TicketRepository ticketRepository,
+                               TicketMetrics ticketMetrics) {
         this.meterRegistry = meterRegistry;
         this.ticketRepository = ticketRepository;
+        this.ticketMetrics = ticketMetrics;
     }
 
     @Override
     public MetricsResponse getMetrics(String period) {
-
         LocalDateTime to = LocalDateTime.now();
         LocalDateTime from = parsePeriod(period, to);
 
-        // read from Micrometer counters — no DB queries
-        double totalCreated = meterRegistry.counter("tickets_created_total").count();
-        double totalResolved = meterRegistry.counter("tickets_resolved_total").count();
-        double totalBreaches = meterRegistry.counter("tickets_sla_breached_total").count();
+        double totalCreated = meterRegistry.counter("tickets_new").count();
+        double totalResolved = meterRegistry.counter("tickets_resolved").count();
+        double totalBreaches = meterRegistry.counter("tickets_sla_breached").count();
 
-        // active open tickets — gauge, one DB query
         long totalActive = ticketRepository.countByStatusNotIn(
                 List.of(Status.RESOLVED, Status.CLOSED));
 
-        // average resolution time from Timer
-        double avgResolutionHours = meterRegistry
-                .timer("ticket_resolution_time")
-                .mean(TimeUnit.HOURS);
+        double avgResolutionSeconds = ticketMetrics.getResolutionTimer()
+                .mean(TimeUnit.SECONDS);
 
         return new MetricsResponse(
-                period, from, to,
+                period,
+                from,
+                to,
                 (long) totalCreated,
                 (long) totalResolved,
                 (long) totalBreaches,
                 totalActive,
-                Math.round(avgResolutionHours * 100.0) / 100.0
+                Math.round(avgResolutionSeconds * 100.0) / 100.0
         );
     }
 

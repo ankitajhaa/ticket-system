@@ -9,6 +9,7 @@ import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class TicketMetrics {
@@ -22,25 +23,24 @@ public class TicketMetrics {
     public TicketMetrics(MeterRegistry meterRegistry, TicketRepository ticketRepository) {
         this.meterRegistry = meterRegistry;
 
-        this.ticketsCreatedCounter = Counter.builder("tickets_created_total")
+        this.ticketsCreatedCounter = Counter.builder("tickets_new")
                 .description("Total tickets created")
                 .register(meterRegistry);
 
-        this.ticketsResolvedCounter = Counter.builder("tickets_resolved_total")
+        this.ticketsResolvedCounter = Counter.builder("tickets_resolved")
                 .description("Total tickets resolved")
                 .register(meterRegistry);
 
-        this.slaBreachedCounter = Counter.builder("tickets_sla_breached_total")
+        this.slaBreachedCounter = Counter.builder("tickets_sla_breached")
                 .description("Total SLA breaches")
                 .register(meterRegistry);
 
         this.resolutionTimer = Timer.builder("ticket_resolution_time")
-                .description("Ticket resolution time")
+                .description("Ticket resolution time in seconds")
                 .register(meterRegistry);
 
-        // gauge for active open tickets — reads from DB, goes up and down
         Gauge.builder("tickets_active_open_total", ticketRepository, repo ->
-                repo.countByStatusNotIn(List.of(Status.RESOLVED, Status.CLOSED)))
+                        repo.countByStatusNotIn(List.of(Status.RESOLVED, Status.CLOSED)))
                 .description("Total active open tickets")
                 .register(meterRegistry);
     }
@@ -57,7 +57,11 @@ public class TicketMetrics {
         slaBreachedCounter.increment();
     }
 
-    public void recordResolutionTime(long hours) {
-        resolutionTimer.record(hours, java.util.concurrent.TimeUnit.HOURS);
+    public void recordResolutionTime(long seconds) {
+        resolutionTimer.record(seconds, TimeUnit.SECONDS);
+    }
+
+    public Timer getResolutionTimer() {
+        return resolutionTimer;
     }
 }
