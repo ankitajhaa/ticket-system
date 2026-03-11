@@ -1,6 +1,8 @@
 package com.beginner_project.ticket_system.service;
 
 import com.beginner_project.ticket_system.enums.Action;
+import com.beginner_project.ticket_system.enums.ActorType;
+import com.beginner_project.ticket_system.enums.AuditAction;
 import com.beginner_project.ticket_system.enums.CommentType;
 import com.beginner_project.ticket_system.enums.NotificationType;
 import com.beginner_project.ticket_system.enums.Priority;
@@ -60,22 +62,21 @@ public class TicketServiceImpl implements TicketService {
             NotificationService notificationService,
             NotificationLogRepository notificationLogRepository,
             CommentRepository commentRepository,
-         TicketMetrics ticketMetrics)
-    {
+            TicketMetrics ticketMetrics) {
+
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.auditLogRepository = auditLogRepository;
         this.slaConfigRepository = slaConfigRepository;
         this.notificationService = notificationService;
         this.notificationLogRepository = notificationLogRepository;
-        this.commentRepository=commentRepository;
-        this.ticketMetrics=ticketMetrics;
+        this.commentRepository = commentRepository;
+        this.ticketMetrics = ticketMetrics;
     }
 
     // ================= CREATE =================
 
     @Override
-    
     public TicketResponse createTicket(TicketCreateRequest request, Users user) {
 
         if (user.getRole() == Role.ADMIN) {
@@ -95,9 +96,8 @@ public class TicketServiceImpl implements TicketService {
         }
 
         if (user.getRole() != Role.CUSTOMER) {
-        throw new BusinessException("Only customers can create tickets", HttpStatus.FORBIDDEN);
-        
-         }
+            throw new BusinessException("Only customers can create tickets", HttpStatus.FORBIDDEN);
+        }
 
         LocalDateTime slaDeadline = LocalDateTime.now().plusHours(slaConfig.getResolutionHours());
 
@@ -109,6 +109,7 @@ public class TicketServiceImpl implements TicketService {
                 slaDeadline,
                 user
         );
+
         TicketResponse response = mapTicket(ticketRepository.save(ticket));
         ticketMetrics.incrementTicketsCreated();
         return response;
@@ -183,44 +184,45 @@ public class TicketServiceImpl implements TicketService {
                             .stream()
                             .map(a -> new AuditLogResponse(
                                     a.getId(),
-                                    a.getUpdatedBy().getUsername(),
-                                    a.getAction(),
+                                    a.getUpdatedBy() != null
+                                            ? a.getUpdatedBy().getUsername()
+                                            : "SYSTEM",
+                                    a.getAction().name(),
                                     a.getTimestamp()
                             ))
                             .toList();
             response.setAuditLogs(logs);
         }
 
-        List<Comment>comments;
+        List<Comment> comments;
 
-        if(user.getRole()==Role.CUSTOMER)
-        {
-            comments=commentRepository.findByTicketAndCommentType(ticket,CommentType.PUBLIC);
-        }
-        else
-        {
-            comments=commentRepository.findByTicket(ticket);
+        if (user.getRole() == Role.CUSTOMER) {
+            comments = commentRepository.findByTicketAndCommentType(ticket, CommentType.PUBLIC);
+        } else {
+            comments = commentRepository.findByTicket(ticket);
         }
 
-        response.setComments(comments.stream().map(c->new CommentResponse(c.getId(),c.getAuthor().getUsername(),c.getContent(),c.getCommentType().name(),c.getCreatedAt())).toList());
+        response.setComments(comments.stream().map(c ->
+                new CommentResponse(
+                        c.getId(),
+                        c.getAuthor().getUsername(),
+                        c.getContent(),
+                        c.getCommentType().name(),
+                        c.getCreatedAt()
+                )).toList());
+
         return response;
     }
 
     // ================= UPDATE =================
 
     @Override
-    public TicketResponse updateTicket(
-            Long ticketId,
-            TicketUpdateRequest request,
-            Users user
-    ) {
+    public TicketResponse updateTicket(Long ticketId, TicketUpdateRequest request, Users user) {
 
-        logger.info("User {} performing {} on ticket {}",
-                user.getUsername(), request.getAction(), ticketId);
+        logger.info("User {} performing {} on ticket {}", user.getUsername(), request.getAction(), ticketId);
 
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() ->
-                        new BusinessException("Ticket does not exist", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException("Ticket does not exist", HttpStatus.NOT_FOUND));
 
         if (ticket.getStatus() == Status.CLOSED)
             throw new BusinessException("Closed tickets cannot be modified", HttpStatus.CONFLICT);
@@ -233,91 +235,68 @@ public class TicketServiceImpl implements TicketService {
             case CLAIM -> {
                 if (user.getRole() != Role.SUPPORT_AGENT)
                     throw new BusinessException("You are not allowed", HttpStatus.FORBIDDEN);
+
                 if (ticket.getAssignedAgent() != null)
                     throw new BusinessException("Ticket already assigned", HttpStatus.CONFLICT);
-
-                notificationLogRepository.invalidateByTicketAndNotificationTypeIn(
-            ticket,
-            List.of(NotificationType.SLA_BREACH, NotificationType.SLA_WARNING,
-                    NotificationType.TICKET_ASSIGNED)
-    );
 
                 ticket.setAssignedAgent(user);
                 ticket.setStatus(Status.ASSIGNED);
             }
 
             case UPDATE_PROGRESS -> {
+
                 boolean isAssignedAgent =
                         ticket.getAssignedAgent() != null &&
                                 ticket.getAssignedAgent().getId().equals(user.getId());
+
                 if (user.getRole() != Role.ADMIN &&
                         !(user.getRole() == Role.SUPPORT_AGENT && isAssignedAgent))
                     throw new BusinessException("You are not allowed", HttpStatus.FORBIDDEN);
+
                 if (request.getStatus() == null)
                     throw new BusinessException("Status is required for UPDATE_PROGRESS", HttpStatus.BAD_REQUEST);
-                Status newStatus;
-                try {
-                    newStatus = Status.valueOf(request.getStatus().toUpperCase());
-                } catch (Exception e) {
-                    throw new BusinessException("Invalid status value", HttpStatus.BAD_REQUEST);
+
+                Status newStatus = Status.valueOf(request.getStatus().toUpperCase());
+
+                if (newStatus == Status.RESOLVED) {
+                    ticketMetrics.incrementTicketsResolved();
+
+                    long secondsToResolve = ChronoUnit.SECONDS.between(
+                            ticket.getCreatedAt(), LocalDateTime.now());
+
+                    ticketMetrics.recordResolutionTime(secondsToResolve);
                 }
-                if (newStatus == Status.RESOLVED || newStatus == Status.CLOSED) {
-        notificationLogRepository.invalidateByTicketAndNotificationTypeIn(
-                ticket,
-                List.of(NotificationType.SLA_BREACH, NotificationType.SLA_WARNING)
-        );
-    }
-              if (newStatus == Status.RESOLVED) {
-        ticketMetrics.incrementTicketsResolved();
-        long secondsToResolve = ChronoUnit.SECONDS.between(
-                ticket.getCreatedAt(), LocalDateTime.now());
-        ticketMetrics.recordResolutionTime(secondsToResolve);
-    }
- 
+
                 ticket.setStatus(newStatus);
             }
 
             case ASSIGN -> {
+
                 if (user.getRole() != Role.ADMIN)
-                    throw new BusinessException(
-                            "You are not allowed to perform this action", HttpStatus.FORBIDDEN);
+                    throw new BusinessException("You are not allowed to perform this action", HttpStatus.FORBIDDEN);
+
                 if (request.getAssignedAgent() == null)
                     throw new BusinessException("Agent id is required", HttpStatus.BAD_REQUEST);
+
                 Users agent = userRepository.findById(request.getAssignedAgent())
-                        .orElseThrow(() ->
-                                new BusinessException("Agent not found", HttpStatus.NOT_FOUND));
+                        .orElseThrow(() -> new BusinessException("Agent not found", HttpStatus.NOT_FOUND));
 
-
-                 notificationLogRepository.invalidateByTicketAndNotificationTypeIn(
-            ticket,
-            List.of(NotificationType.SLA_BREACH, NotificationType.SLA_WARNING,
-                    NotificationType.TICKET_ASSIGNED)
-    );                
                 ticket.setAssignedAgent(agent);
                 ticket.setStatus(Status.ASSIGNED);
             }
 
             case SET_PRIORITY -> {
+
                 if (user.getRole() != Role.ADMIN && user.getRole() != Role.SUPPORT_AGENT)
                     throw new BusinessException("You are not allowed to perform this action", HttpStatus.FORBIDDEN);
-                if (request.getPriority() == null)
-                    throw new BusinessException("Priority is required for SET_PRIORITY", HttpStatus.BAD_REQUEST);
+
                 Priority newPriority = request.getPriority();
-                if (ticket.getPriority() == newPriority)
-                    throw new BusinessException("Ticket already has this priority", HttpStatus.CONFLICT);
-                if (ticket.getStatus() == Status.RESOLVED || ticket.getStatus() == Status.CLOSED)
-                    throw new BusinessException("Cannot change priority on resolved or closed tickets", HttpStatus.CONFLICT);
+
                 SLAConfig slaConfig = slaConfigRepository.findByPriority(newPriority);
-                if (slaConfig == null)
-                    throw new BusinessException("SLA config not found for priority: " + newPriority, HttpStatus.INTERNAL_SERVER_ERROR);
+
                 oldValue = "priority=" + ticket.getPriority() + ",slaDeadline=" + ticket.getSlaDeadline();
+
                 LocalDateTime newDeadline = LocalDateTime.now().plusHours(slaConfig.getResolutionHours());
-
-
-                 notificationLogRepository.invalidateByTicketAndNotificationTypeIn(
-            ticket,
-            List.of(NotificationType.SLA_BREACH, NotificationType.SLA_WARNING)
-    );
 
                 ticket.setPriority(newPriority);
                 ticket.setSlaDeadline(newDeadline);
@@ -327,80 +306,64 @@ public class TicketServiceImpl implements TicketService {
 
         Ticket saved = ticketRepository.save(ticket);
 
-        String newValue = (action == Action.SET_PRIORITY)
-                ? "priority=" + saved.getPriority() + ",slaDeadline=" + saved.getSlaDeadline()
-                : saved.getStatus().name();
+        String newValue = saved.getStatus().name();
+
+        ActorType actorType = user.getRole() == Role.ADMIN
+                ? ActorType.ADMIN
+                : ActorType.AGENT;
+
+        AuditAction auditAction = switch (action) {
+            case CLAIM -> AuditAction.AGENT_ASSIGNED;
+            case UPDATE_PROGRESS -> AuditAction.STATUS_CHANGED;
+            case ASSIGN -> AuditAction.AGENT_ASSIGNED;
+            case SET_PRIORITY -> AuditAction.PRIORITY_CHANGED;
+        };
 
         AuditLog log = auditLogRepository.save(
-                new AuditLog(saved, user, action, oldValue, newValue)
+                new AuditLog(saved, user, actorType, auditAction, oldValue, newValue)
         );
 
-
-        if (action == Action.CLAIM || action == Action.ASSIGN) {
-            notificationService.sendNotification(
-                    saved,
-                    saved.getCreatedBy().getEmail(),
-                    NotificationType.TICKET_ASSIGNED,
-                    NotificationTemplates.ticketAssignedCustomerSubject(saved),
-                    NotificationTemplates.ticketAssignedCustomerBody(saved)
-            );
-            notificationService.sendNotification(
-                    saved,
-                    saved.getAssignedAgent().getEmail(),
-                    NotificationType.TICKET_ASSIGNED,
-                    NotificationTemplates.ticketAssignedAgentSubject(saved),
-                    NotificationTemplates.ticketAssignedAgentBody(saved)
-            );
-        }
-
-        if (action == Action.SET_PRIORITY && saved.getAssignedAgent() != null) {
-            String oldPriority = oldValue.split(",")[0].replace("priority=", "");
-            String oldDeadline = oldValue.split(",")[1].replace("slaDeadline=", "");
-            notificationService.sendNotification(
-                    saved,
-                    saved.getAssignedAgent().getEmail(),
-                    NotificationType.PRIORITY_CHANGED,
-                    NotificationTemplates.priorityChangedSubject(saved),
-                    NotificationTemplates.priorityChangedBody(saved, oldPriority, oldDeadline)
-            );
-        }
-
         TicketResponse response = mapTicket(saved);
+
         response.setAuditLogs(List.of(new AuditLogResponse(
                 log.getId(),
-                log.getUpdatedBy().getUsername(),
-                log.getAction(),
+                log.getUpdatedBy() != null ? log.getUpdatedBy().getUsername() : "SYSTEM",
+                log.getAction().name(),
                 log.getTimestamp()
         )));
+
         return response;
     }
 
+    // ================= SEARCH =================
 
     @Override
-public Page<TicketResponse> searchTickets(
-        TicketFilterRequest filter,
-        int page,
-        int size,
-        String sortBy,
-        String sortDir,
-        Users user
-) {
-    // build sort direction
-    Sort.Direction direction = sortDir.equalsIgnoreCase("asc") 
-            ? Sort.Direction.ASC 
-            : Sort.Direction.DESC;
+    public Page<TicketResponse> searchTickets(
+            TicketFilterRequest filter,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir,
+            Users user) {
 
-    Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+        Sort.Direction direction =
+                sortDir.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
 
-    TicketSpecification spec = new TicketSpecification(filter, user);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
 
-    Page<Ticket> tickets = ticketRepository.findAll(spec, pageable);
-    return tickets.map(this::mapTicket);
-}
+        TicketSpecification spec = new TicketSpecification(filter, user);
 
+        Page<Ticket> tickets = ticketRepository.findAll(spec, pageable);
+
+        return tickets.map(this::mapTicket);
+    }
+
+    // ================= MAPPERS =================
 
     private TicketResponse mapTicket(Ticket ticket) {
+
         TicketResponse response = new TicketResponse();
+
         response.setId(ticket.getId());
         response.setTitle(ticket.getTitle());
         response.setDescription(ticket.getDescription());
@@ -411,11 +374,14 @@ public Page<TicketResponse> searchTickets(
         response.setCreatedBy(mapUser(ticket.getCreatedBy()));
         response.setAssignedAgent(mapUser(ticket.getAssignedAgent()));
         response.setCreatedAt(ticket.getCreatedAt());
+
         return response;
     }
 
     private UserResponse mapUser(Users user) {
+
         if (user == null) return null;
+
         return new UserResponse(
                 user.getId(),
                 user.getUsername(),

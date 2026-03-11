@@ -45,7 +45,8 @@ public class TicketMetrics {
                 .register(meterRegistry);
     }
 
-    public void incrementTicketsCreated() {
+    public void incrementTicketsCreated()
+    {
         ticketsCreatedCounter.increment();
     }
 

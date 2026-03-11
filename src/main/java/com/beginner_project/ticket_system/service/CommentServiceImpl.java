@@ -2,13 +2,17 @@ package com.beginner_project.ticket_system.service;
 
 import com.beginner_project.ticket_system.dto.CommentRequest;
 import com.beginner_project.ticket_system.dto.CommentResponse;
+import com.beginner_project.ticket_system.entity.AuditLog;
 import com.beginner_project.ticket_system.entity.Comment;
 import com.beginner_project.ticket_system.entity.Ticket;
 import com.beginner_project.ticket_system.entity.Users;
+import com.beginner_project.ticket_system.enums.ActorType;
+import com.beginner_project.ticket_system.enums.AuditAction;
 import com.beginner_project.ticket_system.enums.CommentType;
 import com.beginner_project.ticket_system.enums.Role;
 import com.beginner_project.ticket_system.enums.Status;
 import com.beginner_project.ticket_system.exception.BusinessException;
+import com.beginner_project.ticket_system.repository.AuditLogRepository;
 import com.beginner_project.ticket_system.repository.CommentRepository;
 import com.beginner_project.ticket_system.repository.TicketRepository;
 
@@ -28,11 +32,13 @@ public class CommentServiceImpl implements CommentService {
 
     private final CommentRepository commentRepository;
     private final TicketRepository ticketRepository;
+    private final AuditLogRepository auditLogRepository;
 
-    public CommentServiceImpl(CommentRepository commentRepository,TicketRepository ticketRepository)
+    public CommentServiceImpl(CommentRepository commentRepository,TicketRepository ticketRepository, AuditLogRepository auditLogRepository)
     {
         this.commentRepository = commentRepository;
         this.ticketRepository = ticketRepository;
+        this.auditLogRepository = auditLogRepository;
     }
 
     @Override
@@ -67,7 +73,25 @@ public class CommentServiceImpl implements CommentService {
         comment.setCreatedAt(LocalDateTime.now());
 
         Comment saved = commentRepository.save(comment);
+        ActorType actorType;
 
+if (user.getRole() == Role.ADMIN)
+    actorType = ActorType.ADMIN;
+else if (user.getRole() == Role.SUPPORT_AGENT)
+    actorType = ActorType.AGENT;
+else
+    actorType = ActorType.CUSTOMER;
+
+auditLogRepository.save(
+        new AuditLog(
+                ticket,
+                user,
+                actorType,
+                AuditAction.COMMENT_ADDED,
+                "",
+                saved.getContent()
+        )
+);
         return mapComment(saved);
     }
 

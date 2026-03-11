@@ -24,6 +24,7 @@ public class AuditLogResponse {
         return updatedBy;
     }
 
+    
     public String getAction() {
         return action;
     }

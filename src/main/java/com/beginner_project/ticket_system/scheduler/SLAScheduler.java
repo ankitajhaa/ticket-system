@@ -1,10 +1,14 @@
 package com.beginner_project.ticket_system.scheduler;
 
+import com.beginner_project.ticket_system.entity.AuditLog;
 import com.beginner_project.ticket_system.entity.SLAConfig;
 import com.beginner_project.ticket_system.entity.Ticket;
+import com.beginner_project.ticket_system.enums.ActorType;
+import com.beginner_project.ticket_system.enums.AuditAction;
 import com.beginner_project.ticket_system.enums.NotificationType;
 import com.beginner_project.ticket_system.enums.Status;
 import com.beginner_project.ticket_system.metrics.TicketMetrics;
+import com.beginner_project.ticket_system.repository.AuditLogRepository;
 import com.beginner_project.ticket_system.repository.SLAConfigRepository;
 import com.beginner_project.ticket_system.repository.TicketRepository;
 import com.beginner_project.ticket_system.service.NotificationService;
@@ -28,6 +32,7 @@ public class SLAScheduler {
     private final SLAConfigRepository slaConfigRepository;
     private final NotificationService notificationService;
     private final TicketMetrics ticketMetrics;
+    private final AuditLogRepository auditLogRepository;
 
 
     private static final List<Status> EXCLUDED_STATUSES = List.of(
@@ -39,12 +44,15 @@ public class SLAScheduler {
             TicketRepository ticketRepository,
             SLAConfigRepository slaConfigRepository,
             NotificationService notificationService,
-            TicketMetrics ticketMetrics
+            TicketMetrics ticketMetrics,
+            AuditLogRepository auditLogRepository
+
     ) {
         this.ticketRepository = ticketRepository;
         this.slaConfigRepository = slaConfigRepository;
         this.notificationService = notificationService;
         this.ticketMetrics = ticketMetrics;
+        this.auditLogRepository = auditLogRepository;
     }
 
     @Scheduled(fixedRateString = "${sla.scheduler.interval:1800000}")
@@ -63,6 +71,16 @@ public class SLAScheduler {
             ticket.setSlaBreached(true);
             ticketMetrics.incrementSlaBreached();
             ticketRepository.save(ticket);
+            auditLogRepository.save(
+        new AuditLog(
+                ticket,
+                null,
+                ActorType.SYSTEM,
+                AuditAction.SLA_BREACHED,
+                "deadline=" + ticket.getSlaDeadline(),
+                "SLA breached at " + LocalDateTime.now()
+        )
+);
             logger.info("Ticket {} marked as SLA breached", ticket.getId());
 
             // notify assigned agent

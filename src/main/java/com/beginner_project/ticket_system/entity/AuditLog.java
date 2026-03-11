@@ -1,38 +1,42 @@
 package com.beginner_project.ticket_system.entity;
 
-import com.beginner_project.ticket_system.enums.Action;
+import com.beginner_project.ticket_system.enums.ActorType;
+import com.beginner_project.ticket_system.enums.AuditAction;
+
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
-@Table(name = "Audit_log")
 @Entity
+@Table(name = "Audit_log")
 public class AuditLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticket_id", nullable = false)
     private Ticket ticket;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "updated_by", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "updated_by")
     private Users updatedBy;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "actor_type", nullable = false)
+    private ActorType actorType;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "action_type", nullable = false)
-    private String action;
+    private AuditAction action;
 
-    @Lob
-    @Column(name = "old_value", columnDefinition = "TEXT", nullable = false)
-    private String oldValue;
+   @Column(name = "old_value", columnDefinition = "TEXT", nullable = false)
+private String oldValue;
 
-    @Lob
     @Column(name = "new_value", columnDefinition = "TEXT", nullable = false)
-    private String newValue;
+private String newValue;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -40,10 +44,12 @@ public class AuditLog {
 
     public AuditLog() {}
 
-    public AuditLog(Ticket ticket, Users updatedBy, Action action, String oldValue, String newValue) {
+    public AuditLog(Ticket ticket, Users updatedBy, ActorType actorType,
+                    AuditAction action, String oldValue, String newValue) {
         this.ticket = ticket;
         this.updatedBy = updatedBy;
-        this.action = action.name();
+        this.actorType = actorType;
+        this.action = action;
         this.oldValue = oldValue;
         this.newValue = newValue;
     }
@@ -52,51 +58,55 @@ public class AuditLog {
         return id;
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Ticket getTicketId() {
+    public Ticket getTicket() {
         return ticket;
-    }
-
-    public void setTicketId(Ticket ticket) {
-        this.ticket = ticket;
     }
 
     public Users getUpdatedBy() {
         return updatedBy;
     }
 
-    public void setUpdatedBy(Users updatedBy) {
-        this.updatedBy = updatedBy;
+    public ActorType getActorType() {
+        return actorType;
     }
 
-    public String getAction() {
+    public AuditAction getAction() {
         return action;
-    }
-
-    public void setAction(String action) {
-        this.action = action;
     }
 
     public String getOldValue() {
         return oldValue;
     }
 
-    public void setOldValue(String oldValue) {
-        this.oldValue = oldValue;
-    }
-
     public String getNewValue() {
         return newValue;
     }
 
-    public void setNewValue(String newValue) {
-        this.newValue = newValue;
-    }
-
     public LocalDateTime getTimestamp() {
         return timestamp;
+    }
+
+    public void setTicket(Ticket ticket) {
+        this.ticket = ticket;
+    }
+
+    public void setUpdatedBy(Users updatedBy) {
+        this.updatedBy = updatedBy;
+    }
+
+    public void setActorType(ActorType actorType) {
+        this.actorType = actorType;
+    }
+
+    public void setAction(AuditAction action) {
+        this.action = action;
+    }
+
+    public void setOldValue(String oldValue) {
+        this.oldValue = oldValue;
+    }
+
+    public void setNewValue(String newValue) {
+        this.newValue = newValue;
     }
 }
