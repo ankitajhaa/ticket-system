@@ -45,5 +45,19 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>,JpaSpecifi
     @Query("SELECT t from Ticket t where t.slaDeadline >:now AND t.slaBreached = true AND t.status NOT IN :excludedStatuses")
     List<Ticket>findActiveTicketsWithUpcomingDeadline(
         @Param("now") LocalDateTime now, @Param("excludedStatuses") List<Status>excludedStatuses);
+
+    long countByStatus(Status status);
+    long countBySlaBreached(Boolean slaBreahed);
+    long countByStatusNotIn(List<Status>statuses);    
+    long countByCreatedAtBetween(LocalDateTime from, LocalDateTime to);
+
+long countByStatusAndCreatedAtBetween(Status status, LocalDateTime from, LocalDateTime to);
+
+long countBySlaBreachedTrueAndCreatedAtBetween(LocalDateTime from, LocalDateTime to);
+
+long countByStatusNotInAndCreatedAtBetween(List<Status> statuses, LocalDateTime from, LocalDateTime to);
+
+@Query("SELECT t FROM Ticket t WHERE t.status = 'RESOLVED' AND t.createdAt BETWEEN :from AND :to")
+List<Ticket> findResolvedTicketsBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
     
 }

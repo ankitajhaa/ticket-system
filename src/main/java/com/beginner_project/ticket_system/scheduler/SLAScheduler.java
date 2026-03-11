@@ -4,6 +4,7 @@ import com.beginner_project.ticket_system.entity.SLAConfig;
 import com.beginner_project.ticket_system.entity.Ticket;
 import com.beginner_project.ticket_system.enums.NotificationType;
 import com.beginner_project.ticket_system.enums.Status;
+import com.beginner_project.ticket_system.metrics.TicketMetrics;
 import com.beginner_project.ticket_system.repository.SLAConfigRepository;
 import com.beginner_project.ticket_system.repository.TicketRepository;
 import com.beginner_project.ticket_system.service.NotificationService;
@@ -26,6 +27,8 @@ public class SLAScheduler {
     private final TicketRepository ticketRepository;
     private final SLAConfigRepository slaConfigRepository;
     private final NotificationService notificationService;
+    private final TicketMetrics ticketMetrics;
+
 
     private static final List<Status> EXCLUDED_STATUSES = List.of(
             Status.RESOLVED,
@@ -35,11 +38,13 @@ public class SLAScheduler {
     public SLAScheduler(
             TicketRepository ticketRepository,
             SLAConfigRepository slaConfigRepository,
-            NotificationService notificationService
+            NotificationService notificationService,
+            TicketMetrics ticketMetrics
     ) {
         this.ticketRepository = ticketRepository;
         this.slaConfigRepository = slaConfigRepository;
         this.notificationService = notificationService;
+        this.ticketMetrics = ticketMetrics;
     }
 
     @Scheduled(fixedRateString = "${sla.scheduler.interval:1800000}")
@@ -50,13 +55,13 @@ public class SLAScheduler {
 
         LocalDateTime now = LocalDateTime.now();
 
-        // ── PASS 1 — BREACH DETECTION ─────────────────────────────────
         List<Ticket> breachedTickets = ticketRepository
                 .findTicketsBreachedAndNotNotified(now, EXCLUDED_STATUSES);
 
         for (Ticket ticket : breachedTickets) {
 
             ticket.setSlaBreached(true);
+            ticketMetrics.incrementSlaBreached();
             ticketRepository.save(ticket);
             logger.info("Ticket {} marked as SLA breached", ticket.getId());
 
@@ -82,7 +87,6 @@ public class SLAScheduler {
             );
         }
 
-        // ── PASS 2 — REMINDER DETECTION ───────────────────────────────
         List<Ticket> activeTickets = ticketRepository
                 .findActiveTicketsWithUpcomingDeadline(now, EXCLUDED_STATUSES);
 

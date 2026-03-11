@@ -21,6 +21,7 @@ import com.beginner_project.ticket_system.entity.Users;
 import com.beginner_project.ticket_system.enums.Role;
 import com.beginner_project.ticket_system.enums.Status;
 import com.beginner_project.ticket_system.exception.BusinessException;
+import com.beginner_project.ticket_system.metrics.TicketMetrics;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Transactional
@@ -48,6 +50,7 @@ public class TicketServiceImpl implements TicketService {
     private final NotificationLogRepository notificationLogRepository;
     private final NotificationService notificationService;
     private final CommentRepository commentRepository;
+    private final TicketMetrics ticketMetrics;
 
     public TicketServiceImpl(
             TicketRepository ticketRepository,
@@ -56,7 +59,8 @@ public class TicketServiceImpl implements TicketService {
             SLAConfigRepository slaConfigRepository,
             NotificationService notificationService,
             NotificationLogRepository notificationLogRepository,
-            CommentRepository commentRepository)
+            CommentRepository commentRepository,
+         TicketMetrics ticketMetrics)
     {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
@@ -65,6 +69,7 @@ public class TicketServiceImpl implements TicketService {
         this.notificationService = notificationService;
         this.notificationLogRepository = notificationLogRepository;
         this.commentRepository=commentRepository;
+        this.ticketMetrics=ticketMetrics;
     }
 
     // ================= CREATE =================
@@ -104,8 +109,9 @@ public class TicketServiceImpl implements TicketService {
                 slaDeadline,
                 user
         );
-
-        return mapTicket(ticketRepository.save(ticket));
+        TicketResponse response = mapTicket(ticketRepository.save(ticket));
+        ticketMetrics.incrementTicketsCreated();
+        return response;
     }
 
     // ================= LIST =================
@@ -261,6 +267,13 @@ public class TicketServiceImpl implements TicketService {
                 List.of(NotificationType.SLA_BREACH, NotificationType.SLA_WARNING)
         );
     }
+              if (newStatus == Status.RESOLVED) {
+        ticketMetrics.incrementTicketsResolved();
+        long hoursToResolve = ChronoUnit.HOURS.between(
+                ticket.getCreatedAt(), LocalDateTime.now());
+        ticketMetrics.recordResolutionTime(hoursToResolve);
+    }
+ 
                 ticket.setStatus(newStatus);
             }
 
@@ -312,10 +325,8 @@ public class TicketServiceImpl implements TicketService {
             }
         }
 
-        // ── single save for all actions ──────────────────────────────
         Ticket saved = ticketRepository.save(ticket);
 
-        // ── single audit log for all actions ─────────────────────────
         String newValue = (action == Action.SET_PRIORITY)
                 ? "priority=" + saved.getPriority() + ",slaDeadline=" + saved.getSlaDeadline()
                 : saved.getStatus().name();
@@ -324,7 +335,7 @@ public class TicketServiceImpl implements TicketService {
                 new AuditLog(saved, user, action, oldValue, newValue)
         );
 
-        // ── notifications after save ──────────────────────────────────
+
         if (action == Action.CLAIM || action == Action.ASSIGN) {
             notificationService.sendNotification(
                     saved,
@@ -354,7 +365,6 @@ public class TicketServiceImpl implements TicketService {
             );
         }
 
-        // ── single response for all actions ──────────────────────────
         TicketResponse response = mapTicket(saved);
         response.setAuditLogs(List.of(new AuditLogResponse(
                 log.getId(),
@@ -380,20 +390,14 @@ public Page<TicketResponse> searchTickets(
             ? Sort.Direction.ASC 
             : Sort.Direction.DESC;
 
-    // build pageable — page number, size, sort field and direction
     Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
 
-    // build specification with filters + role based access
     TicketSpecification spec = new TicketSpecification(filter, user);
 
-    // execute query — returns Page<Ticket>
     Page<Ticket> tickets = ticketRepository.findAll(spec, pageable);
-
-    // map to Page<TicketResponse>
     return tickets.map(this::mapTicket);
 }
 
-    // ================= MAPPERS =================
 
     private TicketResponse mapTicket(Ticket ticket) {
         TicketResponse response = new TicketResponse();

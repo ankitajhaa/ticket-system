@@ -53,9 +53,11 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/actuator/**"
                         ).permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/tickets/**")
                         .hasAnyRole("ADMIN", "SUPPORT_AGENT", "CUSTOMER")
                         .anyRequest().authenticated()
+                        
                 )
                 .addFilterBefore(
                         jwtAuthenticationFilter,
