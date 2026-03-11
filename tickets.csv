@@ -1,5 +1,4 @@
 customerReference,title,description,priority
-customer1,Test ticket 1,Description for test 1,HIGH
+agent1,Test ticket 1,Description for test 1,HIGH
 customer2,Test ticket 2,Description for test 2,LOW
 customer1,Test ticket 3,Description for test 3,MEDIUM
-invaliduser,Bad ticket,This should fail,HIGH

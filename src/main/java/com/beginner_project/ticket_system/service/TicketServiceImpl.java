@@ -89,6 +89,11 @@ public class TicketServiceImpl implements TicketService {
             throw new BusinessException("SLA Config not found for priority" + priority, HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
+        if (user.getRole() != Role.CUSTOMER) {
+        throw new BusinessException("Only customers can create tickets", HttpStatus.FORBIDDEN);
+        
+         }
+
         LocalDateTime slaDeadline = LocalDateTime.now().plusHours(slaConfig.getResolutionHours());
 
         Ticket ticket = new Ticket(
