@@ -128,6 +128,8 @@ public class TicketServiceImpl implements TicketService {
 
         TicketResponse response = mapTicket(ticketRepository.save(ticket));
         ticketMetrics.incrementTicketsCreated();
+        logger.info("Ticket {} created by user {} with priority {}", 
+    response.getId(), user.getUsername(), priority);
         return response;
     }
 
@@ -251,13 +253,18 @@ public class TicketServiceImpl implements TicketService {
                     throw new BusinessException("You are not allowed", HttpStatus.FORBIDDEN);
 
                 if (ticket.getAssignedAgent() != null)
-                    throw new BusinessException("Ticket already assigned", HttpStatus.CONFLICT);
+                {
+                     logger.warn("Ticket {} already assigned, claim rejected for agent {}", 
+        ticketId, user.getUsername());
+          throw new BusinessException("Ticket already assigned", HttpStatus.CONFLICT);
+                }
+                  
 
                 validateStatusTransition(ticket.getStatus(), Status.ASSIGNED);
 
                 ticket.setAssignedAgent(user);
                 ticket.setStatus(Status.ASSIGNED);
-
+                logger.info("Ticket {} claimed by user {}", ticket.getId(), user.getUsername());
                 notificationService.sendNotification(
                     ticket,
                     ticket.getCreatedBy().getEmail(),
@@ -304,6 +311,8 @@ public class TicketServiceImpl implements TicketService {
                 }
 
                 ticket.setStatus(newStatus);
+                logger.info("Ticket {} status changed to {} by {}", 
+        ticketId, newStatus, user.getUsername());
             }
 
             case ASSIGN -> {
@@ -319,6 +328,8 @@ public class TicketServiceImpl implements TicketService {
     Users agent = userRepository.findById(request.getAssignedAgent())
             .orElseThrow(() -> new BusinessException("Agent not found", HttpStatus.NOT_FOUND));
     if (agent.getRole() != Role.SUPPORT_AGENT) {
+        logger.warn("Attempted to assign non-agent user {} to ticket {}", 
+        agent.getUsername(), ticketId);
      throw new BusinessException(  "User is not a support agent", HttpStatus.BAD_REQUEST );
     }        
 
@@ -327,7 +338,8 @@ public class TicketServiceImpl implements TicketService {
     }
 
     ticket.setAssignedAgent(agent);
-
+    logger.info("Ticket {} assigned to agent {} by admin {}", 
+        ticketId, agent.getUsername(), user.getUsername());
     notificationService.sendNotification(
         ticket,
         ticket.getCreatedBy().getEmail(),

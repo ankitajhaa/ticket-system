@@ -6,13 +6,15 @@ import com.beginner_project.ticket_system.entity.Users;
 import com.beginner_project.ticket_system.enums.ActorType;
 import com.beginner_project.ticket_system.enums.AuditAction;
 import com.beginner_project.ticket_system.repository.AuditLogRepository;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.springframework.stereotype.Service;
 
 @Service
 public class AuditServiceImpl implements AuditService {
-
+    
+      private static final Logger logger = LoggerFactory.getLogger(AuditServiceImpl.class);
     private final AuditLogRepository auditLogRepository;
 
     public AuditServiceImpl(AuditLogRepository auditLogRepository) {
@@ -39,5 +41,6 @@ public class AuditServiceImpl implements AuditService {
         log.setNewValue(newValue);
 
         auditLogRepository.save(log);
+        logger.info("Audit log entry created for ticket {}: {}", ticket.getId(), action);
     }
 }

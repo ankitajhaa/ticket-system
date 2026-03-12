@@ -11,9 +11,12 @@ import com.beginner_project.ticket_system.exception.BusinessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class UserServiceImpl implements UserService {
+      private static final Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -39,6 +42,7 @@ public class UserServiceImpl implements UserService {
         user.setRole(Role.CUSTOMER);
 
         Users saved= userRepository.save(user);
+        logger.info("Customer registered: {}", saved.getUsername());
 
         return new UserResponse(saved.getId(), saved.getUsername(), saved.getEmail());
     }
@@ -50,11 +54,12 @@ public class UserServiceImpl implements UserService {
 
          if (userRepository.existsByEmail(request.getEmail()))
         {
-            throw new RuntimeException("Email already in use");
+            throw new BusinessException("Email already in use", HttpStatus.CONFLICT);
         }
         if (userRepository.existsByUsername(request.getUsername()))
         {
-            throw new RuntimeException("Username already taken");
+            throw new BusinessException("Username already taken", HttpStatus.CONFLICT);
+
         }
         Users user = new Users();
 
@@ -65,6 +70,7 @@ public class UserServiceImpl implements UserService {
         );
         user.setRole(Role.SUPPORT_AGENT);
         Users saved=userRepository.save(user);
+        logger.info("Support agent registered: {}", saved.getUsername());
         return new UserResponse(saved.getId(), saved.getUsername(), saved.getEmail());
     }
 
@@ -78,7 +84,7 @@ public UserResponse updateUserRole(Long userId, UpdateRoleRequest request)
     
     user.setRole(request.getRole());
     Users saved = userRepository.save(user);
-
+    logger.info("User {} role updated to {}", saved.getUsername(), saved.getRole());
     return new UserResponse(saved.getId(), saved.getUsername(), saved.getEmail());
 }
 
@@ -86,6 +92,6 @@ public UserResponse updateUserRole(Long userId, UpdateRoleRequest request)
     public Users getByUsername(String username) {
         return userRepository.findByUsername(username)
                 .orElseThrow(() ->
-                        new RuntimeException("User not found"));
+                        new BusinessException("User not found", HttpStatus.NOT_FOUND));
     }
 }
