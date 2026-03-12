@@ -24,7 +24,6 @@ import com.beginner_project.ticket_system.enums.Role;
 import com.beginner_project.ticket_system.enums.Status;
 import com.beginner_project.ticket_system.exception.BusinessException;
 import com.beginner_project.ticket_system.metrics.TicketMetrics;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -38,12 +37,31 @@ import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 
 @Transactional
 @Service
 public class TicketServiceImpl implements TicketService {
 
     private static final Logger logger = LoggerFactory.getLogger(TicketServiceImpl.class);
+    private static final Map<Status, List<Status>> ALLOWED_TRANSITIONS = Map.of(
+        Status.OPEN,        List.of(Status.ASSIGNED),
+        Status.ASSIGNED,    List.of(Status.IN_PROGRESS),
+        Status.IN_PROGRESS, List.of(Status.RESOLVED),
+        Status.RESOLVED,    List.of(Status.CLOSED),
+        Status.CLOSED,      List.of()
+    );
+
+    private void validateStatusTransition(Status current, Status next) {
+        List<Status> allowed = ALLOWED_TRANSITIONS.getOrDefault(current, List.of());
+        if (!allowed.contains(next)) {
+            throw new BusinessException(
+                "Invalid status transition: " + current + " → " + next +
+                ". Allowed transitions: " + allowed,
+                HttpStatus.CONFLICT
+            );
+        }
+    }
 
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
@@ -74,8 +92,6 @@ public class TicketServiceImpl implements TicketService {
         this.ticketMetrics = ticketMetrics;
     }
 
-    // ================= CREATE =================
-
     @Override
     public TicketResponse createTicket(TicketCreateRequest request, Users user) {
 
@@ -92,7 +108,7 @@ public class TicketServiceImpl implements TicketService {
 
         SLAConfig slaConfig = slaConfigRepository.findByPriority(priority);
         if (slaConfig == null) {
-            throw new BusinessException("SLA Config not found for priority" + priority, HttpStatus.INTERNAL_SERVER_ERROR);
+            throw new BusinessException("SLA Config not found for priority " + priority, HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
         if (user.getRole() != Role.CUSTOMER) {
@@ -115,7 +131,6 @@ public class TicketServiceImpl implements TicketService {
         return response;
     }
 
-    // ================= LIST =================
 
     @Override
     public List<TicketResponse> getTicketsForUser(Users user, String status) {
@@ -151,7 +166,6 @@ public class TicketServiceImpl implements TicketService {
         return tickets.stream().map(this::mapTicket).toList();
     }
 
-    // ================= GET BY ID =================
 
     @Override
     public TicketResponse getTicketById(Long id, Users user) {
@@ -214,7 +228,7 @@ public class TicketServiceImpl implements TicketService {
         return response;
     }
 
-    // ================= UPDATE =================
+
 
     @Override
     public TicketResponse updateTicket(Long ticketId, TicketUpdateRequest request, Users user) {
@@ -239,12 +253,29 @@ public class TicketServiceImpl implements TicketService {
                 if (ticket.getAssignedAgent() != null)
                     throw new BusinessException("Ticket already assigned", HttpStatus.CONFLICT);
 
+                validateStatusTransition(ticket.getStatus(), Status.ASSIGNED);
+
                 ticket.setAssignedAgent(user);
                 ticket.setStatus(Status.ASSIGNED);
+
+                notificationService.sendNotification(
+                    ticket,
+                    ticket.getCreatedBy().getEmail(),
+                    NotificationType.TICKET_ASSIGNED,
+                    NotificationTemplates.ticketAssignedCustomerSubject(ticket),
+                    NotificationTemplates.ticketAssignedCustomerBody(ticket)
+                );
+
+                notificationService.sendNotification(
+                    ticket,
+                    user.getEmail(),
+                    NotificationType.TICKET_ASSIGNED,
+                    NotificationTemplates.ticketAssignedAgentSubject(ticket),
+                    NotificationTemplates.ticketAssignedAgentBody(ticket)
+                );
             }
 
             case UPDATE_PROGRESS -> {
-
                 boolean isAssignedAgent =
                         ticket.getAssignedAgent() != null &&
                                 ticket.getAssignedAgent().getId().equals(user.getId());
@@ -256,14 +287,19 @@ public class TicketServiceImpl implements TicketService {
                 if (request.getStatus() == null)
                     throw new BusinessException("Status is required for UPDATE_PROGRESS", HttpStatus.BAD_REQUEST);
 
-                Status newStatus = Status.valueOf(request.getStatus().toUpperCase());
+                Status newStatus;
+                try {
+                    newStatus = Status.valueOf(request.getStatus().toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    throw new BusinessException("Invalid status value: " + request.getStatus(), HttpStatus.BAD_REQUEST);
+                }
+
+                validateStatusTransition(ticket.getStatus(), newStatus);
 
                 if (newStatus == Status.RESOLVED) {
                     ticketMetrics.incrementTicketsResolved();
-
                     long secondsToResolve = ChronoUnit.SECONDS.between(
                             ticket.getCreatedAt(), LocalDateTime.now());
-
                     ticketMetrics.recordResolutionTime(secondsToResolve);
                 }
 
@@ -271,28 +307,56 @@ public class TicketServiceImpl implements TicketService {
             }
 
             case ASSIGN -> {
+    if (user.getRole() != Role.ADMIN)
+        throw new BusinessException("You are not allowed to perform this action", HttpStatus.FORBIDDEN);
 
-                if (user.getRole() != Role.ADMIN)
-                    throw new BusinessException("You are not allowed to perform this action", HttpStatus.FORBIDDEN);
+    if (request.getAssignedAgent() == null)
+        throw new BusinessException("Agent id is required", HttpStatus.BAD_REQUEST);
 
-                if (request.getAssignedAgent() == null)
-                    throw new BusinessException("Agent id is required", HttpStatus.BAD_REQUEST);
+    if (ticket.getStatus() == Status.RESOLVED || ticket.getStatus() == Status.CLOSED)
+        throw new BusinessException("Cannot reassign a resolved or closed ticket", HttpStatus.CONFLICT);
 
-                Users agent = userRepository.findById(request.getAssignedAgent())
-                        .orElseThrow(() -> new BusinessException("Agent not found", HttpStatus.NOT_FOUND));
+    Users agent = userRepository.findById(request.getAssignedAgent())
+            .orElseThrow(() -> new BusinessException("Agent not found", HttpStatus.NOT_FOUND));
 
-                ticket.setAssignedAgent(agent);
-                ticket.setStatus(Status.ASSIGNED);
-            }
+    if (ticket.getStatus() == Status.OPEN) {
+        ticket.setStatus(Status.ASSIGNED);
+    }
+
+    ticket.setAssignedAgent(agent);
+
+    notificationService.sendNotification(
+        ticket,
+        ticket.getCreatedBy().getEmail(),
+        NotificationType.TICKET_ASSIGNED,
+        NotificationTemplates.ticketAssignedCustomerSubject(ticket),
+        NotificationTemplates.ticketAssignedCustomerBody(ticket)
+    );
+
+    notificationService.sendNotification(
+        ticket,
+        agent.getEmail(),
+        NotificationType.TICKET_ASSIGNED,
+        NotificationTemplates.ticketAssignedAgentSubject(ticket),
+        NotificationTemplates.ticketAssignedAgentBody(ticket)
+    );
+}
 
             case SET_PRIORITY -> {
-
                 if (user.getRole() != Role.ADMIN && user.getRole() != Role.SUPPORT_AGENT)
                     throw new BusinessException("You are not allowed to perform this action", HttpStatus.FORBIDDEN);
 
                 Priority newPriority = request.getPriority();
+                if (newPriority == null)
+                    throw new BusinessException("Priority is required for SET_PRIORITY", HttpStatus.BAD_REQUEST);
 
                 SLAConfig slaConfig = slaConfigRepository.findByPriority(newPriority);
+                if (slaConfig == null)
+                    throw new BusinessException("SLA Config not found for priority " + newPriority, HttpStatus.INTERNAL_SERVER_ERROR);
+
+             
+                String oldPriority = ticket.getPriority().name();
+                String oldDeadline = ticket.getSlaDeadline().toString();
 
                 oldValue = "priority=" + ticket.getPriority() + ",slaDeadline=" + ticket.getSlaDeadline();
 
@@ -301,12 +365,24 @@ public class TicketServiceImpl implements TicketService {
                 ticket.setPriority(newPriority);
                 ticket.setSlaDeadline(newDeadline);
                 ticket.setSlaBreached(false);
+
+                if (ticket.getAssignedAgent() != null) {
+                    notificationService.sendNotification(
+                        ticket,
+                        ticket.getAssignedAgent().getEmail(),
+                        NotificationType.PRIORITY_CHANGED,
+                        NotificationTemplates.priorityChangedSubject(ticket),
+                        NotificationTemplates.priorityChangedBody(ticket, oldPriority, oldDeadline)
+                    );
+                }
             }
         }
 
         Ticket saved = ticketRepository.save(ticket);
 
-        String newValue = saved.getStatus().name();
+        String newValue = action == Action.SET_PRIORITY
+                ? "priority=" + saved.getPriority() + ",slaDeadline=" + saved.getSlaDeadline()
+                : saved.getStatus().name();
 
         ActorType actorType = user.getRole() == Role.ADMIN
                 ? ActorType.ADMIN
@@ -335,8 +411,6 @@ public class TicketServiceImpl implements TicketService {
         return response;
     }
 
-    // ================= SEARCH =================
-
     @Override
     public Page<TicketResponse> searchTickets(
             TicketFilterRequest filter,
@@ -358,7 +432,6 @@ public class TicketServiceImpl implements TicketService {
         return tickets.map(this::mapTicket);
     }
 
-    // ================= MAPPERS =================
 
     private TicketResponse mapTicket(Ticket ticket) {
 

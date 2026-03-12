@@ -2,11 +2,16 @@ package com.beginner_project.ticket_system.controller;
 
 import com.beginner_project.ticket_system.dto.LoginRequest;
 import com.beginner_project.ticket_system.dto.LoginResponse;
+import com.beginner_project.ticket_system.dto.UpdateRoleRequest;
+import com.beginner_project.ticket_system.dto.UserResponse;
 import com.beginner_project.ticket_system.dto.UserSignupRequest;
 import com.beginner_project.ticket_system.service.AuthService;
 import com.beginner_project.ticket_system.service.UserService;
 import jakarta.validation.Valid;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -23,16 +28,33 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<String> signup(
-            @RequestBody UserSignupRequest request) {
+    public ResponseEntity<UserResponse> signup( @RequestBody UserSignupRequest request) {
 
-        userService.registerUser(request);
-        return ResponseEntity.ok("User registered successfully");
+        UserResponse user = userService.registerUser(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(user);
     }
 
+    @PostMapping("/create-support-agent")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponse> createSupportAgent(@Valid @RequestBody UserSignupRequest request)
+{
+        UserResponse user = userService.registerSupportAgent(request);
+      return ResponseEntity.status(HttpStatus.CREATED).body(user);
+    }
+
+    @PatchMapping("/users/{id}/role")
+    @PreAuthorize("hasRole('ADMIN')")
+public ResponseEntity<UserResponse> updateUserRole(
+        @PathVariable("id") Long userId,
+        @Valid @RequestBody UpdateRoleRequest request) {
+
+    UserResponse response = userService.updateUserRole(userId, request);
+    return ResponseEntity.ok(response);
+}
+
+
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(
-            @Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
 
         LoginResponse response = authService.login(
                 request.getUsername(),

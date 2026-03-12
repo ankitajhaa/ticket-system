@@ -1,4 +1,13 @@
 customerReference,title,description,priority
-customer2,LAST Final Prometheus rerun Test ticket for prometheus ,Description for test 1,HIGH
-customer2,Final Prometheus rerun Test ticket prometheus for metrics,Description for test 2,LOW
-customer1,Final Prometheus  rerun est ticket 3,Description for test 3,MEDIUM
+customer2,Prometheus alert rule misfiring on node exporter,Investigate why CPU usage alert is triggering incorrectly on node exporter metrics,CRITICAL
+customer1,Prometheus metrics missing for payment service,Payment service metrics are not appearing in Prometheus scrape targets,HIGH
+customer1,Update Prometheus scrape configuration for new microservice,Add new inventory microservice endpoint to Prometheus configuration,MEDIUM
+customer2,Prometheus dashboard showing incorrect memory usage,Grafana dashboard displays inconsistent memory metrics from Prometheus,LOW
+customer2,Prometheus storage usage increasing rapidly,Investigate abnormal increase in Prometheus TSDB storage size,CRITICAL
+customer1,Prometheus alertmanager not sending email alerts,Alertmanager is not dispatching notifications to configured email receivers,HIGH
+customer1,Prometheus scrape timeout errors for order service,Order service endpoint occasionally exceeds Prometheus scrape timeout,MEDIUM
+customer2,Prometheus query performance degradation,Some PromQL queries are taking longer than expected to execute,LOW
+customer2,Prometheus high cardinality metrics detected,Application exporting labels with high cardinality causing memory pressure,CRITICAL
+customer1,Prometheus service discovery failing for Kubernetes pods,New pods are not automatically appearing in Prometheus targets,MEDIUM
+customer1,Prometheus disk IO metrics missing from node exporter,Disk IO metrics are not being exported properly from certain nodes,HIGH
+customer5,Prometheus rule evaluation delay observed,Recording rules are taking longer to evaluate under load,LOW
