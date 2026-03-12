@@ -30,8 +30,10 @@ public class TicketController {
     }
 
     @PostMapping
-    public TicketResponse createTicket(@Valid @RequestBody TicketCreateRequest request) {
-        return ticketService.createTicket(request, getCurrentUser());
+    public ResponseEntity<TicketResponse> createTicket(@Valid @RequestBody TicketCreateRequest request)
+    {
+        TicketResponse response = ticketService.createTicket(request, getCurrentUser());
+    return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping

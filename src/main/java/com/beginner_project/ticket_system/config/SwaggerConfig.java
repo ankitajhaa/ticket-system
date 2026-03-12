@@ -2,6 +2,7 @@ package com.beginner_project.ticket_system.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
@@ -12,13 +13,10 @@ public class SwaggerConfig {
 
     @Bean
     public OpenAPI customOpenAPI() {
-
         final String securitySchemeName = "bearerAuth";
-
         return new OpenAPI()
                 .addSecurityItem(
-                        new SecurityRequirement()
-                                .addList(securitySchemeName)
+                        new SecurityRequirement().addList(securitySchemeName)
                 )
                 .components(new Components()
                         .addSecuritySchemes(
@@ -29,6 +27,11 @@ public class SwaggerConfig {
                                         .scheme("bearer")
                                         .bearerFormat("JWT")
                         )
+                )
+                .info(new Info()
+                        .title("Ticket Management System API")
+                        .description("REST API for managing customer support tickets with role-based access, SLA tracking, and async notifications")
+                        .version("1.0")
                 );
     }
 }

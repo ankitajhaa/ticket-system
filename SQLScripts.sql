@@ -65,3 +65,56 @@ CREATE INDEX idx_ticket_sla_breached ON Ticket(sla_breached);
 CREATE INDEX idx_ticket_created_by ON Ticket(created_by);
 CREATE INDEX idx_ticket_assigned_agent ON Ticket(assigned_agent);
 CREATE INDEX idx_ticket_created_at ON Ticket(created_at);
+
+
+
+INSERT INTO users (id, username, password, email, role, created_at, updated_at) VALUES
+(1, 'admin', 'adminpass', 'admin@company.com', 'ADMIN', NOW(), NOW()),
+(2, 'agent_john', 'password123', 'john@company.com', 'AGENT', NOW(), NOW()),
+(3, 'agent_sarah', 'password123', 'sarah@company.com', 'AGENT', NOW(), NOW()),
+(4, 'customer_raj', 'password123', 'raj@gmail.com', 'CUSTOMER', NOW(), NOW()),
+(5, 'customer_amit', 'password123', 'amit@gmail.com', 'CUSTOMER', NOW(), NOW());
+
+
+INSERT INTO sla_config (id, priority, resolution_hours, reminder_hours) VALUES
+(1, 'LOW', 72, '24,48'),
+(2, 'MEDIUM', 48, '12,24'),
+(3, 'HIGH', 24, '6,12'),
+(4, 'CRITICAL', 8, '2,4');
+
+
+
+INSERT INTO ticket 
+(id, title, description, status, priority, sla_deadline, sla_breached, created_by, assigned_agent, created_at, updated_at)
+VALUES
+(1, 'Login Issue', 'User unable to login to the system', 'OPEN', 'HIGH',
+ NOW() + INTERVAL 24 HOUR, false, 4, 2, NOW(), NOW()),
+
+(2, 'Payment Failure', 'Payment gateway not processing transactions', 'IN_PROGRESS', 'CRITICAL',
+ NOW() + INTERVAL 8 HOUR, false, 5, 3, NOW(), NOW()),
+
+(3, 'Bug in Dashboard', 'Graphs not loading properly', 'OPEN', 'MEDIUM',
+ NOW() + INTERVAL 48 HOUR, false, 4, 2, NOW(), NOW()),
+
+(4, 'Password Reset', 'Customer cannot reset password', 'RESOLVED', 'LOW',
+ NOW() + INTERVAL 72 HOUR, false, 5, 3, NOW(), NOW());
+
+
+
+INSERT INTO comment (id, ticket_id, author_id, content, comment_type, created_at) VALUES
+(1, 1, 4, 'I cannot login since morning', 'CUSTOMER', NOW()),
+(2, 1, 2, 'We are investigating the issue', 'AGENT', NOW()),
+(3, 2, 5, 'Payment fails every time', 'CUSTOMER', NOW()),
+(4, 2, 3, 'Checking payment gateway logs', 'AGENT', NOW()),
+(5, 3, 4, 'Dashboard graphs not loading', 'CUSTOMER', NOW());
+
+
+
+INSERT INTO audit_log 
+(id, ticket_id, updated_by, actor_type, action_type, old_value, new_value, created_at)
+VALUES
+(1, 1, 2, 'AGENT', 'STATUS_CHANGE', 'OPEN', 'IN_PROGRESS', NOW()),
+(2, 1, 2, 'AGENT', 'ASSIGN_AGENT', 'NULL', 'agent_john', NOW()),
+(3, 2, 3, 'AGENT', 'STATUS_CHANGE', 'OPEN', 'IN_PROGRESS', NOW()),
+(4, 4, 3, 'AGENT', 'STATUS_CHANGE', 'IN_PROGRESS', 'RESOLVED', NOW());
+

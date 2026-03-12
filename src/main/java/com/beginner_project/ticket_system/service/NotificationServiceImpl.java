@@ -1,5 +1,6 @@
 package com.beginner_project.ticket_system.service;
 
+import com.beginner_project.ticket_system.dto.NotificationLogResponse;
 import com.beginner_project.ticket_system.entity.NotificationLog;
 import com.beginner_project.ticket_system.entity.Ticket;
 import com.beginner_project.ticket_system.enums.NotificationStatus;
@@ -78,7 +79,7 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    public void retryNotification(Long notificationId) {
+    public NotificationLogResponse retryNotification(Long notificationId) {
 
         NotificationLog log = notificationLogRepository.findById(notificationId)
                 .orElseThrow(() ->new BusinessException("Notification not found", HttpStatus.NOT_FOUND));
@@ -87,7 +88,17 @@ public class NotificationServiceImpl implements NotificationService {
             throw new BusinessException( "Only FAILED notifications can be retriggered", HttpStatus.CONFLICT);
         }
         attemptSend(log, log.getSubject(), log.getBody());
+        return new NotificationLogResponse(
+                log.getId(),
+                log.getTicket().getId(),
+                log.getRecipientEmail(),
+                log.getNotificationType().name(),
+                log.getStatus().name(),
+                log.getRetryCount(),
+                log.getLastAttemptAt()
+        );
     }
+
     @Async
      void attemptSend(NotificationLog log, String subject, String body) {
         try {

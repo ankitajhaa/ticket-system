@@ -318,6 +318,9 @@ public class TicketServiceImpl implements TicketService {
 
     Users agent = userRepository.findById(request.getAssignedAgent())
             .orElseThrow(() -> new BusinessException("Agent not found", HttpStatus.NOT_FOUND));
+    if (agent.getRole() != Role.SUPPORT_AGENT) {
+     throw new BusinessException(  "User is not a support agent", HttpStatus.BAD_REQUEST );
+    }        
 
     if (ticket.getStatus() == Status.OPEN) {
         ticket.setStatus(Status.ASSIGNED);
