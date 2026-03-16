@@ -45,14 +45,14 @@ public class NotificationServiceImpl implements NotificationService {
        
         boolean alreadySent = notificationLogRepository
                 .existsByTicketAndRecipientEmailAndNotificationTypeAndStatusAndInvalidatedFalse(
-                        ticket, recipientEmail, type, NotificationStatus.SENT);
+                        ticket, recipientEmail, type, NotificationStatus.SENT);  
 
         if (alreadySent) {
             logger.info("Notification already sent for ticket {} type {} to {} — skipping",
                     ticket.getId(), type, recipientEmail);
             return;
         }
-    
+      //checking the arrow keys    
 
         //saving as pending so mid crash still has it and can run again 
         NotificationLog log = new NotificationLog();

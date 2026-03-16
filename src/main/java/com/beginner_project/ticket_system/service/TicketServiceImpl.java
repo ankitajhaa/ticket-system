@@ -338,6 +338,10 @@ public class TicketServiceImpl implements TicketService {
     }
 
     ticket.setAssignedAgent(agent);
+    notificationLogRepository.invalidateByTicketAndNotificationTypeIn(
+    ticket,
+    List.of(NotificationType.TICKET_ASSIGNED)
+);
     logger.info("Ticket {} assigned to agent {} by admin {}", 
         ticketId, agent.getUsername(), user.getUsername());
     notificationService.sendNotification(
